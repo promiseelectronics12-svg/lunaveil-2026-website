@@ -113,14 +113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedOrder = insertOrderSchema.parse(orderData);
       const validatedItems = z.array(insertOrderItemSchema.omit({ orderId: true })).parse(items);
 
-      const order = await storage.createOrder(validatedOrder);
-
-      for (const item of validatedItems) {
-        await storage.createOrderItem({
-          ...item,
-          orderId: order.id,
-        });
-      }
+      const order = await storage.createOrderWithItems(validatedOrder, validatedItems);
 
       res.status(201).json(order);
     } catch (error) {
@@ -210,23 +203,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validatedItems = z.array(insertInvoiceItemSchema.omit({ invoiceId: true })).parse(items);
 
-      const invoice = await storage.createInvoice(validatedInvoice);
-
-      for (const item of validatedItems) {
-        await storage.createInvoiceItem({
-          ...item,
-          invoiceId: invoice.id,
-        });
-
-        if (item.productId) {
-          await storage.reduceStock(item.productId, item.quantity);
-        }
-      }
+      // Create invoice with items and reduce stock in a single transaction
+      const invoice = await storage.createInvoiceWithItems(validatedInvoice, validatedItems, true);
 
       res.status(201).json(invoice);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors });
+      }
+      if (error instanceof Error && error.message.includes("Insufficient stock")) {
+        return res.status(400).json({ error: error.message });
       }
       res.status(500).json({ error: "Failed to create invoice" });
     }
