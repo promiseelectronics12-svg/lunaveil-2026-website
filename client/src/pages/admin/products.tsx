@@ -85,6 +85,14 @@ export default function Products() {
       setDialogOpen(false);
       form.reset();
     },
+    onError: (error: any) => {
+      console.error("Create product error:", error);
+      toast({
+        title: language === "bn" ? "ত্রুটি" : "Error",
+        description: language === "bn" ? "পণ্য যোগ করতে ব্যর্থ" : "Failed to add product",
+        variant: "destructive",
+      });
+    },
   });
 
   const updateMutation = useMutation({
@@ -98,6 +106,14 @@ export default function Products() {
       setDialogOpen(false);
       setEditingProduct(null);
       form.reset();
+    },
+    onError: (error: any) => {
+      console.error("Update product error:", error);
+      toast({
+        title: language === "bn" ? "ত্রুটি" : "Error",
+        description: language === "bn" ? "পণ্য আপডেট করতে ব্যর্থ" : "Failed to update product",
+        variant: "destructive",
+      });
     },
   });
 
@@ -125,10 +141,11 @@ export default function Products() {
   };
 
   const onSubmit = (data: FormData) => {
+    // For Drizzle decimal fields, keep price as string
+    // Only convert stock to number since it's an integer
     const productData = {
       ...data,
-      price: parseFloat(data.price),
-      stock: parseInt(data.stock),
+      stock: parseInt(data.stock, 10),
     };
 
     if (editingProduct) {
