@@ -3,6 +3,7 @@ import { CustomerHeader } from "@/components/customer-header";
 import { CustomerFooter } from "@/components/customer-footer";
 import { HeroSection } from "@/components/hero-section";
 import { ProductCard } from "@/components/product-card";
+import { ProductDetailDialog } from "@/components/product-detail-dialog";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,8 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ["/api/products"],
@@ -71,6 +74,11 @@ export default function Home() {
   const proceedToCheckout = () => {
     localStorage.setItem("cart", JSON.stringify(cart));
     setLocation("/checkout");
+  };
+
+  const handleViewDetails = (product: Product) => {
+    setSelectedProduct(product);
+    setDetailDialogOpen(true);
   };
 
   return (
@@ -126,7 +134,7 @@ export default function Home() {
                   key={product.id}
                   product={product}
                   onAddToCart={addToCart}
-                  onViewDetails={addToCart}
+                  onViewDetails={handleViewDetails}
                 />
               ))}
             </div>
@@ -135,6 +143,13 @@ export default function Home() {
       </main>
 
       <CustomerFooter />
+
+      <ProductDetailDialog
+        product={selectedProduct}
+        open={detailDialogOpen}
+        onOpenChange={setDetailDialogOpen}
+        onAddToCart={addToCart}
+      />
 
       <Sheet open={cartOpen} onOpenChange={setCartOpen}>
         <SheetContent className="w-full sm:max-w-md">
