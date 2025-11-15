@@ -7,8 +7,9 @@ import { z } from "zod";
 export const companySettings = pgTable("company_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   companyName: text("company_name").notNull().default("LUNAVEIL"),
-  companyPhone: text("company_phone"),
-  companyAddress: text("company_address"),
+  companyPhone: text("company_phone").notNull().default("+880 1234-567890"),
+  companyEmail: text("company_email"),
+  companyAddress: text("company_address").notNull().default("Dhaka, Bangladesh"),
   logoUrl: text("logo_url"),
   invoiceFooterText: text("invoice_footer_text").default("Thank you for shopping with LUNAVEIL"),
   deliveryChargeInsideDhaka: decimal("delivery_charge_inside_dhaka", { precision: 10, scale: 2 }).notNull().default("60"),
@@ -99,9 +100,14 @@ export const invoices = pgTable("invoices", {
   customerName: text("customer_name").notNull(),
   customerPhone: text("customer_phone"),
   customerAddress: text("customer_address"),
+  date: timestamp("date").notNull().defaultNow(),
   deliveryCharge: decimal("delivery_charge", { precision: 10, scale: 2 }).notNull().default("0"),
+  discount: decimal("discount", { precision: 10, scale: 2 }).notNull().default("0"),
   subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+  paymentMethod: text("payment_method").notNull().default("cash"),
+  status: text("status").notNull().default("paid"), // paid, pending, cancelled
+  notes: text("notes"),
   isPOS: boolean("is_pos").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });

@@ -21,11 +21,12 @@ import {
 } from "@/components/ui/table";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Plus, Pencil, Trash2, Search, X, ImagePlus } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, X, ImagePlus, FileSpreadsheet } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
+import { exportProductsToExcel } from "@/lib/exports";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertProductSchema } from "@shared/schema";
@@ -146,27 +147,45 @@ export default function Products() {
     );
   });
 
+  const handleExportExcel = () => {
+    exportProductsToExcel(filteredProducts, language);
+    toast({
+      title: language === "bn" ? "সফল" : "Success",
+      description: language === "bn" ? "এক্সেল ডাউনলোড হয়েছে" : "Excel downloaded successfully",
+    });
+  };
+
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-foreground">{t("admin.products")}</h1>
-        <Dialog
-          open={dialogOpen}
-          onOpenChange={(open) => {
-            setDialogOpen(open);
-            if (!open) {
-              setEditingProduct(null);
-              setNewImageUrl("");
-              form.reset();
-            }
-          }}
-        >
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-product">
-              <Plus className="h-4 w-4 mr-2" />
-              {language === "bn" ? "পণ্য যোগ করুন" : "Add Product"}
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleExportExcel}
+            disabled={filteredProducts.length === 0}
+            data-testid="button-export-products-excel"
+          >
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            {language === "bn" ? "এক্সেল রপ্তানি" : "Export Excel"}
+          </Button>
+          <Dialog
+            open={dialogOpen}
+            onOpenChange={(open) => {
+              setDialogOpen(open);
+              if (!open) {
+                setEditingProduct(null);
+                setNewImageUrl("");
+                form.reset();
+              }
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button data-testid="button-add-product">
+                <Plus className="h-4 w-4 mr-2" />
+                {language === "bn" ? "পণ্য যোগ করুন" : "Add Product"}
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
@@ -385,6 +404,7 @@ export default function Products() {
             </Form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Card>
