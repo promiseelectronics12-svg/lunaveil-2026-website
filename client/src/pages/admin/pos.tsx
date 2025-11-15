@@ -5,11 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Search, Plus, Minus, Trash2, Printer } from "lucide-react";
+import { Search, Plus, Minus, Trash2, FileText } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useToast } from "@/hooks/use-toast";
-import type { Product } from "@shared/schema";
+import type { Product, Invoice, InvoiceItem, CompanySettings } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InvoicePreviewDialog } from "@/components/invoice-preview-dialog";
 
 interface CartItem extends Product {
   quantity: number;
@@ -21,26 +22,44 @@ export default function POS() {
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [deliveryCharge, setDeliveryCharge] = useState("0");
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [generatedInvoice, setGeneratedInvoice] = useState<Invoice | null>(null);
+  const [generatedInvoiceItems, setGeneratedInvoiceItems] = useState<InvoiceItem[]>([]);
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ["/api/products"],
   });
 
+  const { data: settings } = useQuery<CompanySettings>({
+    queryKey: ["/api/settings"],
+  });
+
   const createInvoiceMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiRequest("POST", "/api/invoices", data);
-      return response;
+      return response.json();
     },
-    onSuccess: (invoice: any) => {
+    onSuccess: async (invoice: Invoice) => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      
+      // Fetch invoice items
+      const itemsResponse = await fetch(`/api/invoices/${invoice.id}/items`);
+      const items: InvoiceItem[] = await itemsResponse.json();
+      
       toast({
         title: language === "bn" ? "চালান তৈরি হয়েছে" : "Invoice created",
         description: `Invoice #${invoice.invoiceNumber}`,
       });
+      
+      // Set invoice data and open preview
+      setGeneratedInvoice(invoice);
+      setGeneratedInvoiceItems(items);
+      setPreviewDialogOpen(true);
+      
+      // Clear cart
       setCart([]);
       setDeliveryCharge("0");
-      window.open(`/admin/invoices/${invoice.id}/print`, "_blank");
     },
   });
 
@@ -286,20 +305,28 @@ export default function POS() {
                   size="lg"
                   onClick={handlePrintInvoice}
                   disabled={createInvoiceMutation.isPending}
-                  data-testid="button-print-invoice"
+                  data-testid="button-generate-invoice"
                 >
-                  <Printer className="h-4 w-4 mr-2" />
+                  <FileText className="h-4 w-4 mr-2" />
                   {createInvoiceMutation.isPending
                     ? t("common.loading")
                     : language === "bn"
-                    ? "চালান প্রিন্ট করুন"
-                    : "Print Invoice"}
+                    ? "চালান তৈরি করুন"
+                    : "Generate Invoice"}
                 </Button>
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      <InvoicePreviewDialog
+        invoice={generatedInvoice}
+        items={generatedInvoiceItems}
+        settings={settings || null}
+        open={previewDialogOpen}
+        onOpenChange={setPreviewDialogOpen}
+      />
     </div>
   );
 }
