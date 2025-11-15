@@ -1,0 +1,241 @@
+Your POS + inventory + website system will now include full brand integration for LUNAVEIL and an admin option to upload your company logo to automatically show on:
+
+Printed invoices
+
+POS billing receipts
+
+Website header
+
+Admin dashboard
+
+🌙 SYSTEM NAME
+LUNAVEIL POS & E-Commerce Suite
+
+A complete cosmetics selling platform for Bangladesh.
+
+🔥 NEW FEATURES ADDED (SPECIFICALLY FOR YOU)
+1️⃣ LUNAVEIL Branding Support
+
+System title everywhere: LUNAVEIL Admin Panel
+
+Front-end footer shows:
+© LUNAVEIL – All Rights Reserved
+
+Default primary colors based on your brand (you can change later)
+
+2️⃣ Logo Upload Feature (Very Important)
+
+In backend settings, add a page:
+
+🔹 Company Settings
+
+Fields:
+
+Upload Logo (PNG/JPG)
+
+Company Name (default: LUNAVEIL)
+
+Company Phone
+
+Company Address
+
+Invoice Footer Text (editable)
+
+Logo Usage After Upload
+
+Your uploaded logo will show automatically on:
+
+✔ A4 Invoice
+✔ POS Slip (small receipt)
+✔ Website top-left corner
+✔ Admin dashboard top-left corner
+✔ Packing slip
+
+You can change the logo anytime.
+
+💳 BILLING WITH LUNAVEIL LOGO
+Invoice Layout:
+
+Logo on top-center
+
+Company name LUNAVEIL under logo
+
+Invoice number
+
+Customer details
+
+Product table
+
+Delivery charge
+
+Total amount (৳ BDT)
+
+Footer: “Thank you for shopping with LUNAVEIL” (editable)
+
+POS Slip Layout:
+
+Small version of logo
+
+Invoice No.
+
+Items + Price
+
+Delivery charge
+
+Total
+
+Print without border (POS machine)
+
+🌐 FRONT-END WEBSITE FEATURES (Cosmetics Store)
+Branding:
+
+Logo floated left
+
+LUNAVEIL colors
+
+Multi-language (Bangla/English)
+
+COD checkout
+
+Location-based delivery charge
+
+Product search & filters
+
+Mobile responsive
+
+Checkout Form:
+
+Name
+
+Phone
+
+Full address
+
+Inside/Outside Dhaka (auto delivery cost)
+
+Product list + quantity
+
+Order goes directly into your LUNAVEIL POS backend.
+
+🖥️ BACK-END (LUNAVEIL ADMIN PANEL)
+Modules:
+✔ Dashboard (with logo on top)
+
+Orders today
+
+Sales summary
+
+Inventory status
+
+New order alerts
+
+✔ Product Management
+
+Add/update/delete products
+
+Upload multiple images
+
+Set prices
+
+Set stock
+
+Add Bangla & English descriptions
+
+Auto sync to website
+
+✔ Order Management
+
+New orders from website
+
+Accept/Reject
+
+Assign delivery charge
+
+Print invoice (with LUNAVEIL logo)
+
+Track status
+
+Auto reduce stock on confirmation
+
+✔ POS Billing System
+
+Add items
+
+Auto calculations
+
+Delivery charge
+
+Print invoice (logo included)
+
+Save invoice history
+
+✔ Invoice History
+
+Reprint with logo
+
+Search filters
+
+Export (PDF/Excel)
+
+✔ Settings
+
+Upload logo
+
+Change delivery charge (inside/outside Dhaka)
+
+Change site text in Bangla/English
+
+Change backend entry URL
+Example:
+
+Main website: lunaveil.com
+
+Admin: lunaveil.com/lunapanel
+
+🇧🇩 BANGLA + ENGLISH (MULTI-LANGUAGE)
+
+The website and admin panel will support:
+
+Buttons
+
+Product details
+
+Notifications
+
+Invoice printing
+
+Checkout page
+
+Frontend will have a simple toggle:
+EN | BN
+
+💡 HOW YOUR COMPLETE SYSTEM WILL WORK
+1. You upload product from LUNAVEIL backend
+
+→ Automatically updates on website
+
+2. Customer orders from website
+
+→ Order shows in your POS dashboard
+
+3. You confirm the order
+
+→ Stock decreases
+→ Invoice generated
+
+4. You print invoice with LUNAVEIL logo
+
+→ Package ready for delivery
+
+5. All invoices are saved permanently
+
+→ You can reprint anytime
+
+⚙️ TECH STACK (BEST CHOICE FOR YOU)
+Backend: Laravel
+Frontend: Next.js or Laravel Blade
+Database: MySQL
+Printing: Browser-based PDF + POS print
+API: REST API between website & POS
+
+This stack is perfect for Bangladesh (reliable, fast, easy to maintain).
