@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, X, ImagePlus } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@shared/schema";
@@ -36,6 +36,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { z } from "zod";
 
@@ -52,6 +53,7 @@ export default function Products() {
   const [searchQuery, setSearchQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [newImageUrl, setNewImageUrl] = useState("");
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ["/api/products"],
@@ -72,7 +74,10 @@ export default function Products() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: any) => apiRequest("POST", "/api/products", data),
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/products", data);
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       toast({ title: language === "bn" ? "পণ্য যোগ হয়েছে" : "Product added" });
@@ -82,8 +87,10 @@ export default function Products() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) =>
-      apiRequest("PATCH", `/api/products/${id}`, data),
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const response = await apiRequest("PATCH", `/api/products/${id}`, data);
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       toast({ title: language === "bn" ? "পণ্য আপডেট হয়েছে" : "Product updated" });
@@ -94,7 +101,7 @@ export default function Products() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => apiRequest("DELETE", `/api/products/${id}`, {}),
+    mutationFn: async (id: string) => apiRequest("DELETE", `/api/products/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       toast({ title: language === "bn" ? "পণ্য মুছে ফেলা হয়েছে" : "Product deleted" });
@@ -119,7 +126,7 @@ export default function Products() {
   const onSubmit = (data: FormData) => {
     const productData = {
       ...data,
-      price: data.price,
+      price: parseFloat(data.price),
       stock: parseInt(data.stock),
     };
 
@@ -149,6 +156,7 @@ export default function Products() {
             setDialogOpen(open);
             if (!open) {
               setEditingProduct(null);
+              setNewImageUrl("");
               form.reset();
             }
           }}
@@ -272,6 +280,96 @@ export default function Products() {
                     )}
                   />
                 </div>
+
+                <FormField
+                  control={form.control}
+                  name="images"
+                  render={({ field }) => {
+                    const handleAddImage = () => {
+                      const url = newImageUrl.trim();
+                      const currentImages = field.value || [];
+                      if (url && !currentImages.includes(url)) {
+                        field.onChange([...currentImages, url]);
+                        setNewImageUrl("");
+                      }
+                    };
+
+                    const handleRemoveImage = (index: number) => {
+                      const currentImages = field.value || [];
+                      const newImages = currentImages.filter((_, i) => i !== index);
+                      field.onChange(newImages);
+                    };
+
+                    return (
+                      <FormItem>
+                        <FormLabel>
+                          {language === "bn" ? "পণ্য ছবি" : "Product Images"}
+                        </FormLabel>
+                        <FormControl>
+                          <div className="space-y-3">
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder={language === "bn" ? "ছবির URL প্রবেশ করান" : "Enter image URL"}
+                                value={newImageUrl}
+                                onChange={(e) => setNewImageUrl(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    handleAddImage();
+                                  }
+                                }}
+                                data-testid="input-image-url"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleAddImage}
+                                data-testid="button-add-image"
+                              >
+                                <ImagePlus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            
+                            {field.value && field.value.length > 0 && (
+                              <div className="grid grid-cols-3 gap-3" data-testid="image-preview-grid">
+                                {field.value.map((url, index) => (
+                                  <div key={index} className="relative group" data-testid={`image-preview-${index}`}>
+                                    <img
+                                      src={url}
+                                      alt={`Product ${index + 1}`}
+                                      className="w-full h-32 object-cover rounded-md border"
+                                      onError={(e) => {
+                                        e.currentTarget.src = "https://via.placeholder.com/150?text=Invalid+URL";
+                                      }}
+                                      data-testid={`img-product-preview-${index}`}
+                                    />
+                                    <Button
+                                      type="button"
+                                      size="icon"
+                                      variant="destructive"
+                                      className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                      onClick={() => handleRemoveImage(index)}
+                                      data-testid={`button-remove-image-${index}`}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            
+                            <FormDescription>
+                              {language === "bn" 
+                                ? "ছবির URL প্রবেশ করান এবং Enter চাপুন বা + বাটন ক্লিক করুন। আপনি একাধিক ছবি যোগ করতে পারেন।"
+                                : "Enter image URL and press Enter or click the + button. You can add multiple images."}
+                            </FormDescription>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
+                />
 
                 <Button
                   type="submit"
