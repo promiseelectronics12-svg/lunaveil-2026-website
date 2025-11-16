@@ -52,8 +52,8 @@ LUNAVEIL is a full-featured business management system that combines:
 1. **Authentication**: Secure login with session management and protected routes
 2. **Dashboard**: Stats cards, recent orders, low stock alerts
 3. **Product Management**: CRUD operations with Bengali/English descriptions and image upload
-4. **Order Management**: View, confirm, reject orders from website
-5. **POS Billing**: In-store checkout with cart and delivery charges
+4. **Order Management**: View, confirm, reject orders from website and POS
+5. **POS Billing**: In-store checkout with customer details, cart, delivery charges, and order creation
 6. **Invoice History**: Search, filter, and reprint invoices
 7. **User Management**: Create and delete admin users (requires authentication)
 8. **Settings**: Company info, logo upload, delivery charge configuration
@@ -65,6 +65,17 @@ LUNAVEIL is a full-featured business management system that combines:
 - **Edit & Remove**: Hover to remove unwanted images
 - **Controlled State**: Fully integrated with React Hook Form validation
 - **Bilingual**: Works seamlessly in Bengali and English
+
+### POS Billing System
+- **Customer Details**: Input fields for name, phone, address, and delivery location
+- **Delivery Location**: Dropdown to select Inside/Outside Dhaka with automatic charge updates
+- **Product Selection**: Click-to-add from product grid with real-time stock display
+- **Cart Management**: Quantity controls, remove items, live total calculations
+- **Dual Actions**:
+  - **Save as Order**: Creates confirmed order record (requires customer details, reduces stock, appears in Orders tab)
+  - **Print Invoice**: Generates POS invoice (customer details optional, auto-reduces stock, opens print dialog)
+- **Form Validation**: Required fields for order creation, empty cart prevention
+- **Auto-reset**: Clears cart and form after successful submission
 
 ### Invoice Printing
 - **A4 Format**: Full-page invoice with company logo
@@ -128,7 +139,18 @@ LUNAVEIL is a full-featured business management system that combines:
 
 ## Recent Changes
 
-### 2025-11-16 (Latest - Admin Authentication System)
+### 2025-11-16 (Latest - POS Billing Enhancements)
+- Added customer detail input fields (name, phone, address, delivery location)
+- Implemented "Save as Order" button to create orders directly from POS
+- Added automatic delivery charge updates based on location selection
+- Created order mutation with stock reduction on confirmed status
+- Updated backend to reduce stock when creating confirmed orders
+- Added form validation for required customer fields
+- Implemented form reset after successful order/invoice creation
+- Orders created from POS now appear in Orders management tab
+- End-to-end tested: customer input, order creation, stock reduction, orders tab integration
+
+### 2025-11-16 (Admin Authentication System)
 - Implemented complete authentication system with Passport.js and bcrypt
 - Created admin users table in PostgreSQL database
 - Built login page with secure session management
