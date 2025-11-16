@@ -201,12 +201,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedOrder = insertOrderSchema.parse(orderData);
       const validatedItems = z.array(insertOrderItemSchema.omit({ orderId: true })).parse(items);
 
-      const order = await storage.createOrderWithItems(validatedOrder, validatedItems);
+      // If order is being created as "confirmed", reduce stock immediately
+      const reduceStock = validatedOrder.status === "confirmed";
+      const order = await storage.createOrderWithItems(validatedOrder, validatedItems, reduceStock);
 
       res.status(201).json(order);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors });
+      }
+      if (error instanceof Error && error.message.includes("Insufficient stock")) {
+        return res.status(400).json({ error: error.message });
       }
       res.status(500).json({ error: "Failed to create order" });
     }

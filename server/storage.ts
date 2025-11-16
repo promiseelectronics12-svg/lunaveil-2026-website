@@ -41,7 +41,7 @@ export interface IStorage {
   getOrder(id: string): Promise<Order | undefined>;
   createOrder(order: InsertOrder): Promise<Order>;
   updateOrder(id: string, order: Partial<InsertOrder>): Promise<Order | undefined>;
-  createOrderWithItems(order: InsertOrder, items: Omit<InsertOrderItem, "orderId">[]): Promise<Order>;
+  createOrderWithItems(order: InsertOrder, items: Omit<InsertOrderItem, "orderId">[], reduceStock?: boolean): Promise<Order>;
 
   // Order Items
   getOrderItems(orderId: string): Promise<OrderItem[]>;
@@ -145,7 +145,7 @@ export class DatabaseStorage implements IStorage {
     return newItem;
   }
 
-  async createOrderWithItems(order: InsertOrder, items: Omit<InsertOrderItem, "orderId">[]): Promise<Order> {
+  async createOrderWithItems(order: InsertOrder, items: Omit<InsertOrderItem, "orderId">[], reduceStock: boolean = false): Promise<Order> {
     return await db.transaction(async (tx) => {
       const [newOrder] = await tx.insert(orders).values(order).returning();
       
@@ -155,6 +155,23 @@ export class DatabaseStorage implements IStorage {
           orderId: newOrder.id,
         }));
         await tx.insert(orderItems).values(orderItemsData);
+
+        // Reduce stock if requested (for POS orders)
+        if (reduceStock) {
+          for (const item of items) {
+            if (item.productId) {
+              const [product] = await tx.select().from(products).where(eq(products.id, item.productId));
+              if (!product || product.stock < item.quantity) {
+                throw new Error(`Insufficient stock for product: ${item.productNameEn}`);
+              }
+              
+              await tx
+                .update(products)
+                .set({ stock: product.stock - item.quantity, updatedAt: new Date() })
+                .where(eq(products.id, item.productId));
+            }
+          }
+        }
       }
       
       return newOrder;

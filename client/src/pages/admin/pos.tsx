@@ -8,7 +8,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Search, Plus, Minus, Trash2, Printer, ShoppingCart } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useToast } from "@/hooks/use-toast";
-import type { Product } from "@shared/schema";
+import type { Product, CompanySettings } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -37,7 +37,7 @@ export default function POS() {
     queryKey: ["/api/products"],
   });
 
-  const { data: settings } = useQuery({
+  const { data: settings } = useQuery<CompanySettings>({
     queryKey: ["/api/settings"],
   });
 
