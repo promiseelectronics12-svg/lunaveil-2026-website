@@ -87,12 +87,16 @@ LUNAVEIL is a full-featured business management system that combines:
 - **Customizable**: Footer text and company details from settings
 
 ### Authentication & Security
-- **Login System**: Username/password authentication with session persistence
+- **Dual Authentication Methods**:
+  - Traditional username/password login
+  - Google OAuth 2.0 sign-in (requires pre-linked Google account)
 - **Password Hashing**: Bcrypt with 10 rounds for secure password storage
 - **Protected Routes**: All admin routes require authentication
 - **Session Management**: Secure HTTP-only cookies with express-session
 - **Default Admin**: Initial admin user (username: admin, password: admin123)
 - **User Management**: Create and delete admin users from admin panel
+- **Google Account Linking**: Admin users can link their Google account via `/api/admin/link-google` endpoint (requires authentication)
+- **Security Model**: Google OAuth does NOT auto-provision admin accounts - Google emails must be pre-linked to existing admin users
 - **Logout**: Clears session and invalidates cached queries
 
 ## Tech Stack
@@ -142,7 +146,21 @@ LUNAVEIL is a full-featured business management system that combines:
 
 ## Recent Changes
 
-### 2025-11-16 (Latest - Discounted Pricing Feature)
+### 2025-11-16 (Latest - Google OAuth Integration)
+- Added Google Sign-In as alternative authentication method for admin login
+- Implemented secure Google OAuth 2.0 flow using Passport.js Google Strategy
+- Extended admin_users schema with `googleEmail` field (unique, nullable) and made `password` nullable
+- Created `/api/auth/google` and `/api/auth/google/callback` endpoints for OAuth flow
+- Added `/api/admin/link-google` endpoint for existing admins to link their Google account
+- Security fix: Removed auto-provisioning of admin accounts via Google OAuth
+- Google OAuth now requires pre-linked Google email (prevents unauthorized access)
+- Updated login page UI with "Sign in with Google" button and proper error handling
+- Added Google Cloud Console redirect URI configuration support
+- Error messaging for unauthorized Google accounts with instructions to contact administrator
+- All Google OAuth users authenticated through same session management as traditional login
+- Architect reviewed and approved security model
+
+### 2025-11-16 (Discounted Pricing Feature)
 - Implemented complete discounted pricing system with dual-price display
 - Added optional discountedPrice field to products schema
 - Updated product form to include discounted price input with validation

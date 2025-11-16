@@ -2,6 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import passport from "./auth";
+import bcrypt from "bcrypt";
 import {
   insertProductSchema,
   insertOrderSchema,
@@ -12,6 +13,21 @@ import {
   insertAdminUserSchema,
 } from "@shared/schema";
 import { z } from "zod";
+
+// Normalize Google email to prevent alias-based attacks
+function normalizeGoogleEmail(email: string): string {
+  const lowercased = email.toLowerCase().trim();
+  
+  // For Gmail addresses, remove dots and plus aliases
+  if (lowercased.endsWith("@gmail.com") || lowercased.endsWith("@googlemail.com")) {
+    const [localPart, domain] = lowercased.split("@");
+    // Remove dots from local part and anything after +
+    const normalized = localPart.replace(/\./g, "").split("+")[0];
+    return `${normalized}@gmail.com`;
+  }
+  
+  return lowercased;
+}
 
 // Authentication middleware
 function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -62,13 +78,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     passport.authenticate("google", { scope: ["profile", "email"] })
   );
 
-  app.get("/api/auth/google/callback",
-    passport.authenticate("google", { failureRedirect: "/login" }),
-    (req, res) => {
-      // Successful authentication, redirect to admin dashboard
-      res.redirect("/admin");
+  app.get("/api/auth/google/callback", (req, res, next) => {
+    passport.authenticate("google", (err: Error, user: Express.User, info: { message?: string }) => {
+      if (err) {
+        console.error("Google OAuth error:", err);
+        return res.redirect("/login?error=oauth_server_error");
+      }
+      if (!user) {
+        // Distinguish between authorization failure and other issues
+        const errorType = info?.message?.includes("not authorized") 
+          ? "google_not_authorized" 
+          : "oauth_failed";
+        return res.redirect(`/login?error=${errorType}`);
+      }
+      req.logIn(user, (err) => {
+        if (err) {
+          console.error("Session creation error:", err);
+          return res.redirect("/login?error=session_failed");
+        }
+        res.redirect("/admin");
+      });
+    })(req, res, next);
+  });
+
+  // Link Google account to existing admin user (requires authentication and password confirmation)
+  app.post("/api/admin/link-google", requireAuth, async (req, res) => {
+    try {
+      const { googleEmail, password } = req.body;
+      
+      if (!googleEmail || typeof googleEmail !== "string") {
+        return res.status(400).json({ error: "Google email is required" });
+      }
+
+      if (!password || typeof password !== "string") {
+        return res.status(400).json({ error: "Password confirmation is required" });
+      }
+
+      // Verify password before allowing account linking
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const currentUser = await storage.getAdminUser(req.user.id);
+      if (!currentUser || !currentUser.password) {
+        return res.status(400).json({ error: "Cannot link Google account to OAuth-only users" });
+      }
+
+      const isValidPassword = await bcrypt.compare(password, currentUser.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: "Invalid password" });
+      }
+
+      // Normalize email (lowercase, remove Gmail aliases)
+      const normalizedEmail = normalizeGoogleEmail(googleEmail);
+
+      // Check if normalized email is already linked to another user
+      const existingUser = await storage.getAdminUserByGoogleEmail(normalizedEmail);
+      if (existingUser && existingUser.id !== req.user.id) {
+        return res.status(400).json({ error: "This Google account is already linked to another user" });
+      }
+
+      // Update current user's Google email
+      const updated = await storage.linkGoogleEmail(req.user.id, normalizedEmail);
+      if (updated) {
+        // Regenerate session after linking to prevent fixation
+        req.session.regenerate((err) => {
+          if (err) {
+            console.error("Session regeneration error:", err);
+          }
+          req.logIn(updated, (err) => {
+            if (err) {
+              return res.status(500).json({ error: "Session update failed" });
+            }
+            return res.json({ message: "Google account linked successfully", user: updated });
+          });
+        });
+      } else {
+        res.status(500).json({ error: "Failed to link Google account" });
+      }
+    } catch (error) {
+      console.error("Link Google error:", error);
+      res.status(500).json({ error: "Failed to link Google account" });
     }
-  );
+  });
 
   // Admin user management routes (protected)
   app.get("/api/admin/users", requireAuth, async (_req, res) => {

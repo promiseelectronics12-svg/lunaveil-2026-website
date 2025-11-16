@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,45 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function Login() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+
+  // Check for Google OAuth error in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get("error");
+    
+    if (error) {
+      let title = "Sign-In Failed";
+      let description = "An error occurred during sign-in. Please try again.";
+      
+      switch (error) {
+        case "google_not_authorized":
+          title = "Google Account Not Authorized";
+          description = "Your Google account is not linked to an admin account. Please contact an administrator to link your account, or use traditional login.";
+          break;
+        case "oauth_server_error":
+          title = "OAuth Server Error";
+          description = "A server error occurred during Google authentication. Please try again or use traditional login.";
+          break;
+        case "session_failed":
+          title = "Session Creation Failed";
+          description = "Failed to create session after authentication. Please try again.";
+          break;
+        case "oauth_failed":
+          title = "OAuth Failed";
+          description = "Google authentication failed. Please try again or use traditional login.";
+          break;
+      }
+      
+      toast({
+        title,
+        description,
+        variant: "destructive",
+      });
+      
+      // Clean up URL
+      window.history.replaceState({}, "", "/login");
+    }
+  }, [toast]);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),

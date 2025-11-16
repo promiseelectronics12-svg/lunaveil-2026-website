@@ -11,6 +11,21 @@ declare global {
   }
 }
 
+// Normalize Google email to prevent alias-based attacks
+function normalizeGoogleEmail(email: string): string {
+  const lowercased = email.toLowerCase().trim();
+  
+  // For Gmail addresses, remove dots and plus aliases
+  if (lowercased.endsWith("@gmail.com") || lowercased.endsWith("@googlemail.com")) {
+    const [localPart, domain] = lowercased.split("@");
+    // Remove dots from local part and anything after +
+    const normalized = localPart.replace(/\./g, "").split("+")[0];
+    return `${normalized}@gmail.com`;
+  }
+  
+  return lowercased;
+}
+
 passport.use(
   new LocalStrategy(async (username, password, done) => {
     try {
@@ -52,18 +67,14 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
             return done(new Error("No email found in Google profile"));
           }
 
-          // Check if user with this Google email exists
-          let user = await storage.getAdminUserByGoogleEmail(email);
+          // Normalize email to prevent alias-based attacks
+          const normalizedEmail = normalizeGoogleEmail(email);
+
+          // Only allow login if user with this normalized Google email already exists
+          let user = await storage.getAdminUserByGoogleEmail(normalizedEmail);
           
           if (!user) {
-            // Create new admin user with Google email (createAdminUser already returns user without password)
-            const newUser = await storage.createAdminUser({
-              username: email.split("@")[0] + "_google",
-              password: undefined,
-              googleEmail: email,
-              role: "admin",
-            });
-            return done(null, newUser);
+            return done(null, false, { message: "Google account not authorized. Please contact an administrator to link your Google account." } as any);
           }
 
           const { password: _, ...userWithoutPassword } = user;

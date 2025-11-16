@@ -69,6 +69,7 @@ export interface IStorage {
   getAdminUserByGoogleEmail(googleEmail: string): Promise<AdminUser | undefined>;
   createAdminUser(user: InsertAdminUser): Promise<Omit<AdminUser, "password">>;
   deleteAdminUser(id: string): Promise<boolean>;
+  linkGoogleEmail(userId: string, googleEmail: string): Promise<Omit<AdminUser, "password"> | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -312,6 +313,19 @@ export class DatabaseStorage implements IStorage {
   async deleteAdminUser(id: string): Promise<boolean> {
     const result = await db.delete(adminUsers).where(eq(adminUsers.id, id)).returning();
     return result.length > 0;
+  }
+
+  async linkGoogleEmail(userId: string, googleEmail: string): Promise<Omit<AdminUser, "password"> | undefined> {
+    const [updated] = await db
+      .update(adminUsers)
+      .set({ googleEmail, updatedAt: new Date() })
+      .where(eq(adminUsers.id, userId))
+      .returning();
+    
+    if (!updated) return undefined;
+    
+    const { password, ...userWithoutPassword } = updated;
+    return userWithoutPassword;
   }
 }
 
