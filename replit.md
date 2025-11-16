@@ -68,13 +68,15 @@ LUNAVEIL is a full-featured business management system that combines:
 
 ### POS Billing System
 - **Customer Details**: Input fields for name, phone, address, and delivery location
+- **Link to Orders**: Button to load customer information from previous orders
+  - Opens dialog with searchable list of all orders
+  - Search by customer name, phone, or address
+  - Click any order to auto-fill customer details
+  - Helps process repeat customers quickly
 - **Delivery Location**: Dropdown to select Inside/Outside Dhaka with automatic charge updates
 - **Product Selection**: Click-to-add from product grid with real-time stock display
 - **Cart Management**: Quantity controls, remove items, live total calculations
-- **Dual Actions**:
-  - **Save as Order**: Creates confirmed order record (requires customer details, reduces stock, appears in Orders tab)
-  - **Print Invoice**: Generates POS invoice (customer details optional, auto-reduces stock, opens print dialog)
-- **Form Validation**: Required fields for order creation, empty cart prevention
+- **Print Invoice**: Generates POS invoice (auto-reduces stock, opens print dialog)
 - **Auto-reset**: Clears cart and form after successful submission
 
 ### Invoice Printing
@@ -139,16 +141,14 @@ LUNAVEIL is a full-featured business management system that combines:
 
 ## Recent Changes
 
-### 2025-11-16 (Latest - POS Billing Enhancements)
-- Added customer detail input fields (name, phone, address, delivery location)
-- Implemented "Save as Order" button to create orders directly from POS
-- Added automatic delivery charge updates based on location selection
-- Created order mutation with stock reduction on confirmed status
-- Updated backend to reduce stock when creating confirmed orders
-- Added form validation for required customer fields
-- Implemented form reset after successful order/invoice creation
-- Orders created from POS now appear in Orders management tab
-- End-to-end tested: customer input, order creation, stock reduction, orders tab integration
+### 2025-11-16 (Latest - Link to Orders Feature)
+- Added "Link to Orders" button in POS billing to load customer information from existing orders
+- Created searchable orders dialog with filter by name, phone, or address
+- Implemented customer data auto-fill when selecting an order
+- Added loading skeleton screens for better UX
+- Null-safe delivery charge handling with fallback to settings-based defaults
+- Helps POS operators quickly process repeat customers
+- End-to-end tested: dialog opening, order search, customer field population
 
 ### 2025-11-16 (Admin Authentication System)
 - Implemented complete authentication system with Passport.js and bcrypt
