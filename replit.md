@@ -32,9 +32,9 @@ LUNAVEIL is a full-featured business management system that combines:
 - **File Structure**: Thin routes + storage interface pattern
 
 ### Data Models
-- **Products**: Multi-language (Bengali/English) with images, pricing, stock
-- **Orders**: Customer info, delivery location, items, status tracking
-- **Invoices**: POS and website orders with invoice numbers
+- **Products**: Multi-language (Bengali/English) with images, regular pricing, optional discounted pricing, stock
+- **Orders**: Customer info, delivery location, items (with both regular and effective prices), status tracking
+- **Invoices**: POS and website orders with invoice numbers, items (with both regular and effective prices)
 - **Company Settings**: Logo, delivery charges, contact info
 - **Admin Users**: Authenticated users with username, hashed password, and role
 
@@ -43,10 +43,11 @@ LUNAVEIL is a full-featured business management system that combines:
 ### Customer Website
 1. **Hero Section**: Full-width hero with lifestyle imagery
 2. **Product Grid**: Responsive grid with search functionality
-3. **Shopping Cart**: Side sheet with quantity controls
-4. **Checkout**: Multi-step form with COD payment
-5. **Language Toggle**: EN/BN switcher in header
-6. **Dark Mode**: System-wide theme toggle
+3. **Discounted Pricing**: Display regular price with strikethrough and discounted price when applicable
+4. **Shopping Cart**: Side sheet with quantity controls and discount display
+5. **Checkout**: Multi-step form with COD payment and discounted pricing
+6. **Language Toggle**: EN/BN switcher in header
+7. **Dark Mode**: System-wide theme toggle
 
 ### Admin Dashboard
 1. **Authentication**: Secure login with session management and protected routes
@@ -141,7 +142,21 @@ LUNAVEIL is a full-featured business management system that combines:
 
 ## Recent Changes
 
-### 2025-11-16 (Latest - Link to Orders Feature)
+### 2025-11-16 (Latest - Discounted Pricing Feature)
+- Implemented complete discounted pricing system with dual-price display
+- Added optional discountedPrice field to products schema
+- Updated product form to include discounted price input with validation
+- Customer-facing components show regular price with strikethrough and discounted price side-by-side
+- Updated product card, product detail dialog, cart, and checkout to display discounts
+- Backend validation ensures discountedPrice ≤ price in all cases
+- Order and invoice items preserve both regularPrice and effective price for discount tracking and reporting
+- POS system updated to handle and display discounted pricing correctly
+- All calculations (cart subtotal, checkout total, POS total) use discounted prices when available
+- Database migration applied successfully with new columns
+- End-to-end tested: product display, cart calculations, order creation with correct price structure
+- Architect approved as production-ready implementation
+
+### 2025-11-16 (Link to Orders Feature)
 - Added "Link to Orders" button in POS billing to load customer information from existing orders
 - Created searchable orders dialog with filter by name, phone, or address
 - Implemented customer data auto-fill when selecting an order
