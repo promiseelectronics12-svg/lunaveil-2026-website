@@ -52,7 +52,7 @@ export default function POS() {
     queryKey: ["/api/settings"],
   });
 
-  const { data: orders = [] } = useQuery<Order[]>({
+  const { data: orders = [], isLoading: isLoadingOrders } = useQuery<Order[]>({
     queryKey: ["/api/orders"],
     enabled: ordersDialogOpen,
   });
@@ -213,7 +213,7 @@ export default function POS() {
     setCustomerPhone(order.customerPhone);
     setCustomerAddress(order.customerAddress);
     setDeliveryLocation(order.deliveryLocation);
-    setDeliveryCharge(order.deliveryCharge);
+    setDeliveryCharge(order.deliveryCharge.toString());
     setOrdersDialogOpen(false);
     toast({
       title: language === "bn" ? "গ্রাহকের তথ্য লোড হয়েছে" : "Customer info loaded",
@@ -479,7 +479,28 @@ export default function POS() {
                           />
                         </div>
                         <ScrollArea className="h-[400px] pr-4">
-                          {filteredOrders.length === 0 ? (
+                          {isLoadingOrders ? (
+                            <div className="space-y-2">
+                              {Array.from({ length: 5 }).map((_, i) => (
+                                <Card key={i}>
+                                  <CardContent className="p-4">
+                                    <div className="flex justify-between items-start">
+                                      <div className="space-y-2 flex-1">
+                                        <Skeleton className="h-5 w-3/4" />
+                                        <Skeleton className="h-4 w-1/2" />
+                                        <Skeleton className="h-4 w-full" />
+                                        <Skeleton className="h-4 w-1/3" />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Skeleton className="h-5 w-20" />
+                                        <Skeleton className="h-4 w-16" />
+                                      </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          ) : filteredOrders.length === 0 ? (
                             <div className="text-center py-8 text-muted-foreground">
                               {language === "bn" ? "কোন অর্ডার পাওয়া যায়নি" : "No orders found"}
                             </div>
