@@ -33,6 +33,7 @@ export const products = pgTable("products", {
   descriptionEn: text("description_en").notNull(),
   descriptionBn: text("description_bn").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  discountedPrice: decimal("discounted_price", { precision: 10, scale: 2 }),
   stock: integer("stock").notNull().default(0),
   category: text("category").notNull(),
   images: text("images").array().notNull().default(sql`ARRAY[]::text[]`),
@@ -81,7 +82,8 @@ export const orderItems = pgTable("order_items", {
   productNameEn: text("product_name_en").notNull(),
   productNameBn: text("product_name_bn").notNull(),
   quantity: integer("quantity").notNull(),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  regularPrice: decimal("regular_price", { precision: 10, scale: 2 }).notNull(), // Original price before discount
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(), // Effective price paid (discounted if applicable)
   subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
 });
 
@@ -128,7 +130,8 @@ export const invoiceItems = pgTable("invoice_items", {
   productNameEn: text("product_name_en").notNull(),
   productNameBn: text("product_name_bn").notNull(),
   quantity: integer("quantity").notNull(),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  regularPrice: decimal("regular_price", { precision: 10, scale: 2 }).notNull(), // Original price before discount
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(), // Effective price paid (discounted if applicable)
   subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
 });
 

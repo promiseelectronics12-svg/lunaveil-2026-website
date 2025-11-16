@@ -53,7 +53,12 @@ export default function Checkout() {
       : parseFloat(settings?.deliveryChargeOutsideDhaka || "120");
 
   const subtotal = cart.reduce(
-    (sum, item) => sum + parseFloat(item.price.toString()) * item.quantity,
+    (sum, item) => {
+      const price = item.discountedPrice 
+        ? parseFloat(item.discountedPrice.toString()) 
+        : parseFloat(item.price.toString());
+      return sum + price * item.quantity;
+    },
     0
   );
 
@@ -115,14 +120,21 @@ export default function Checkout() {
       subtotal: subtotal.toString(),
       total: total.toString(),
       status: "pending",
-      items: cart.map((item) => ({
-        productId: item.id,
-        productNameEn: item.nameEn,
-        productNameBn: item.nameBn,
-        quantity: item.quantity,
-        price: item.price.toString(),
-        subtotal: (parseFloat(item.price.toString()) * item.quantity).toString(),
-      })),
+      items: cart.map((item) => {
+        const regularPrice = parseFloat(item.price.toString());
+        const effectivePrice = item.discountedPrice 
+          ? parseFloat(item.discountedPrice.toString()) 
+          : regularPrice;
+        return {
+          productId: item.id,
+          productNameEn: item.nameEn,
+          productNameBn: item.nameBn,
+          quantity: item.quantity,
+          regularPrice: regularPrice.toString(),
+          price: effectivePrice.toString(),
+          subtotal: (effectivePrice * item.quantity).toString(),
+        };
+      }),
     };
 
     orderMutation.mutate(orderData);
@@ -256,13 +268,16 @@ export default function Checkout() {
               <CardContent className="space-y-4">
                 {cart.map((item) => {
                   const name = language === "bn" ? item.nameBn : item.nameEn;
+                  const price = item.discountedPrice 
+                    ? parseFloat(item.discountedPrice.toString()) 
+                    : parseFloat(item.price.toString());
                   return (
                     <div key={item.id} className="flex justify-between text-sm" data-testid={`summary-item-${item.id}`}>
                       <span className="text-muted-foreground">
                         {name} × {item.quantity}
                       </span>
                       <span className="font-medium">
-                        ৳{(parseFloat(item.price.toString()) * item.quantity).toFixed(2)}
+                        ৳{(price * item.quantity).toFixed(2)}
                       </span>
                     </div>
                   );

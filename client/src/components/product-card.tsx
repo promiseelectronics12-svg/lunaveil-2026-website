@@ -46,9 +46,20 @@ export function ProductCard({ product, onAddToCart, onViewDetails }: ProductCard
           {description}
         </p>
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-semibold text-primary" data-testid={`text-product-price-${product.id}`}>
-            ৳{product.price}
-          </span>
+          {product.discountedPrice ? (
+            <>
+              <span className="text-lg text-muted-foreground line-through" data-testid={`text-product-regular-price-${product.id}`}>
+                ৳{product.price}
+              </span>
+              <span className="text-2xl font-semibold text-primary" data-testid={`text-product-discounted-price-${product.id}`}>
+                ৳{product.discountedPrice}
+              </span>
+            </>
+          ) : (
+            <span className="text-2xl font-semibold text-primary" data-testid={`text-product-price-${product.id}`}>
+              ৳{product.price}
+            </span>
+          )}
         </div>
       </CardContent>
 

@@ -125,7 +125,12 @@ export default function POS() {
   };
 
   const subtotal = cart.reduce(
-    (sum, item) => sum + parseFloat(item.price.toString()) * item.quantity,
+    (sum, item) => {
+      const price = item.discountedPrice 
+        ? parseFloat(item.discountedPrice.toString()) 
+        : parseFloat(item.price.toString());
+      return sum + price * item.quantity;
+    },
     0
   );
 
@@ -195,14 +200,21 @@ export default function POS() {
       subtotal: subtotal.toString(),
       total: total.toString(),
       isPOS: true,
-      items: cart.map((item) => ({
-        productId: item.id,
-        productNameEn: item.nameEn,
-        productNameBn: item.nameBn,
-        quantity: item.quantity,
-        price: item.price.toString(),
-        subtotal: (parseFloat(item.price.toString()) * item.quantity).toString(),
-      })),
+      items: cart.map((item) => {
+        const regularPrice = parseFloat(item.price.toString());
+        const effectivePrice = item.discountedPrice 
+          ? parseFloat(item.discountedPrice.toString()) 
+          : regularPrice;
+        return {
+          productId: item.id,
+          productNameEn: item.nameEn,
+          productNameBn: item.nameBn,
+          quantity: item.quantity,
+          regularPrice: regularPrice.toString(),
+          price: effectivePrice.toString(),
+          subtotal: (effectivePrice * item.quantity).toString(),
+        };
+      }),
     };
 
     createInvoiceMutation.mutate(invoiceData);

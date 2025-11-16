@@ -67,7 +67,12 @@ export default function Home() {
   };
 
   const cartTotal = cart.reduce(
-    (sum, item) => sum + parseFloat(item.price.toString()) * item.quantity,
+    (sum, item) => {
+      const price = item.discountedPrice 
+        ? parseFloat(item.discountedPrice.toString()) 
+        : parseFloat(item.price.toString());
+      return sum + price * item.quantity;
+    },
     0
   );
 
@@ -180,7 +185,16 @@ export default function Home() {
                           )}
                           <div className="flex-1">
                             <h4 className="font-medium text-sm mb-1" data-testid={`text-cart-item-name-${item.id}`}>{name}</h4>
-                            <p className="text-primary font-semibold">৳{item.price}</p>
+                            <div className="flex items-baseline gap-2">
+                              {item.discountedPrice ? (
+                                <>
+                                  <span className="text-sm text-muted-foreground line-through">৳{item.price}</span>
+                                  <span className="text-primary font-semibold">৳{item.discountedPrice}</span>
+                                </>
+                              ) : (
+                                <span className="text-primary font-semibold">৳{item.price}</span>
+                              )}
+                            </div>
                             <div className="flex items-center gap-2 mt-2">
                               <Button
                                 size="icon"

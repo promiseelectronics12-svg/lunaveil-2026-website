@@ -124,7 +124,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/products", async (req, res) => {
     try {
-      const data = insertProductSchema.parse(req.body);
+      // Convert empty string to undefined for optional decimal fields
+      const body = {
+        ...req.body,
+        discountedPrice: req.body.discountedPrice === "" ? undefined : req.body.discountedPrice,
+      };
+      
+      // Validate that discounted price is less than or equal to regular price
+      if (body.discountedPrice !== undefined && body.discountedPrice !== null) {
+        const regularPrice = parseFloat(body.price);
+        const discountedPrice = parseFloat(body.discountedPrice);
+        if (discountedPrice > regularPrice) {
+          return res.status(400).json({ 
+            error: "Discounted price cannot be greater than regular price" 
+          });
+        }
+      }
+      
+      const data = insertProductSchema.parse(body);
       const product = await storage.createProduct(data);
       res.status(201).json(product);
     } catch (error) {
@@ -137,7 +154,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/products/:id", async (req, res) => {
     try {
-      const data = insertProductSchema.partial().parse(req.body);
+      // Convert empty string to undefined for optional decimal fields
+      const body = {
+        ...req.body,
+        discountedPrice: req.body.discountedPrice === "" ? undefined : req.body.discountedPrice,
+      };
+      
+      // Validate that discounted price is less than or equal to regular price
+      if (body.discountedPrice !== undefined && body.discountedPrice !== null) {
+        // Fetch existing product to get current price if not provided in request
+        const existingProduct = await storage.getProduct(req.params.id);
+        if (!existingProduct) {
+          return res.status(404).json({ error: "Product not found" });
+        }
+        
+        // Use the price from the request if provided, otherwise use the existing price
+        const regularPrice = body.price !== undefined 
+          ? parseFloat(body.price) 
+          : parseFloat(existingProduct.price.toString());
+        const discountedPrice = parseFloat(body.discountedPrice);
+        
+        if (discountedPrice > regularPrice) {
+          return res.status(400).json({ 
+            error: "Discounted price cannot be greater than regular price" 
+          });
+        }
+      }
+      
+      const data = insertProductSchema.partial().parse(body);
       const product = await storage.updateProduct(req.params.id, data);
       if (!product) {
         return res.status(404).json({ error: "Product not found" });

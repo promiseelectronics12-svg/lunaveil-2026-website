@@ -109,10 +109,21 @@ export function ProductDetailDialog({
             </div>
 
             {/* Price */}
-            <div>
-              <span className="text-4xl font-bold text-primary" data-testid="text-product-detail-price">
-                ৳{product.price}
-              </span>
+            <div className="flex items-baseline gap-3">
+              {product.discountedPrice ? (
+                <>
+                  <span className="text-2xl text-muted-foreground line-through" data-testid="text-product-detail-regular-price">
+                    ৳{product.price}
+                  </span>
+                  <span className="text-4xl font-bold text-primary" data-testid="text-product-detail-discounted-price">
+                    ৳{product.discountedPrice}
+                  </span>
+                </>
+              ) : (
+                <span className="text-4xl font-bold text-primary" data-testid="text-product-detail-price">
+                  ৳{product.price}
+                </span>
+              )}
             </div>
 
             {/* Stock Status */}

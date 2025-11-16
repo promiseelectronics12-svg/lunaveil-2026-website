@@ -43,6 +43,7 @@ import { z } from "zod";
 
 const formSchema = insertProductSchema.extend({
   price: z.string().min(1),
+  discountedPrice: z.string().optional(),
   stock: z.string().min(1),
 });
 
@@ -68,6 +69,7 @@ export default function Products() {
       descriptionEn: "",
       descriptionBn: "",
       price: "",
+      discountedPrice: "",
       stock: "",
       category: "",
       images: [],
@@ -133,6 +135,7 @@ export default function Products() {
       descriptionEn: product.descriptionEn,
       descriptionBn: product.descriptionBn,
       price: product.price.toString(),
+      discountedPrice: product.discountedPrice?.toString() || "",
       stock: product.stock.toString(),
       category: product.category,
       images: product.images || [],
@@ -275,13 +278,13 @@ export default function Products() {
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="price"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Price (৳)</FormLabel>
+                        <FormLabel>Regular Price (৳)</FormLabel>
                         <FormControl>
                           <Input type="number" step="0.01" {...field} data-testid="input-price" />
                         </FormControl>
@@ -289,6 +292,25 @@ export default function Products() {
                       </FormItem>
                     )}
                   />
+                  <FormField
+                    control={form.control}
+                    name="discountedPrice"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Discounted Price (৳) - Optional</FormLabel>
+                        <FormControl>
+                          <Input type="number" step="0.01" {...field} data-testid="input-discounted-price" />
+                        </FormControl>
+                        <FormDescription className="text-xs">
+                          Leave empty if no discount
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="stock"
