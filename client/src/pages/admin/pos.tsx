@@ -5,11 +5,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Search, Plus, Minus, Trash2, Printer } from "lucide-react";
+import { Search, Plus, Minus, Trash2, Printer, ShoppingCart } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface CartItem extends Product {
   quantity: number;
@@ -20,10 +27,18 @@ export default function POS() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [deliveryCharge, setDeliveryCharge] = useState("0");
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [customerAddress, setCustomerAddress] = useState("");
+  const [deliveryLocation, setDeliveryLocation] = useState("inside_dhaka");
+  const [deliveryCharge, setDeliveryCharge] = useState("60");
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ["/api/products"],
+  });
+
+  const { data: settings } = useQuery({
+    queryKey: ["/api/settings"],
   });
 
   const createInvoiceMutation = useMutation({
@@ -38,9 +53,24 @@ export default function POS() {
         title: language === "bn" ? "চালান তৈরি হয়েছে" : "Invoice created",
         description: `Invoice #${invoice.invoiceNumber}`,
       });
-      setCart([]);
-      setDeliveryCharge("0");
+      resetForm();
       window.open(`/admin/invoices/${invoice.id}/print`, "_blank");
+    },
+  });
+
+  const createOrderMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/orders", data);
+      return response;
+    },
+    onSuccess: (order: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      toast({
+        title: language === "bn" ? "অর্ডার তৈরি হয়েছে" : "Order created",
+        description: language === "bn" ? "অর্ডার সফলভাবে সংরক্ষিত হয়েছে" : "Order saved successfully",
+      });
+      resetForm();
     },
   });
 
@@ -101,6 +131,53 @@ export default function POS() {
 
   const total = subtotal + parseFloat(deliveryCharge || "0");
 
+  const resetForm = () => {
+    setCart([]);
+    setCustomerName("");
+    setCustomerPhone("");
+    setCustomerAddress("");
+    setDeliveryLocation("inside_dhaka");
+    setDeliveryCharge(settings?.deliveryChargeInsideDhaka || "60");
+  };
+
+  const handleDeliveryLocationChange = (value: string) => {
+    setDeliveryLocation(value);
+    if (settings) {
+      const charge = value === "inside_dhaka" 
+        ? settings.deliveryChargeInsideDhaka 
+        : settings.deliveryChargeOutsideDhaka;
+      setDeliveryCharge(charge);
+    }
+  };
+
+  const validateCustomerDetails = () => {
+    if (!customerName.trim()) {
+      toast({
+        title: language === "bn" ? "ত্রুটি" : "Error",
+        description: language === "bn" ? "গ্রাহকের নাম প্রয়োজন" : "Customer name is required",
+        variant: "destructive",
+      });
+      return false;
+    }
+    if (!customerPhone.trim()) {
+      toast({
+        title: language === "bn" ? "ত্রুটি" : "Error",
+        description: language === "bn" ? "গ্রাহকের ফোন প্রয়োজন" : "Customer phone is required",
+        variant: "destructive",
+      });
+      return false;
+    }
+    if (!customerAddress.trim()) {
+      toast({
+        title: language === "bn" ? "ত্রুটি" : "Error",
+        description: language === "bn" ? "গ্রাহকের ঠিকানা প্রয়োজন" : "Customer address is required",
+        variant: "destructive",
+      });
+      return false;
+    }
+    return true;
+  };
+
   const handlePrintInvoice = () => {
     if (cart.length === 0) {
       toast({
@@ -111,7 +188,9 @@ export default function POS() {
     }
 
     const invoiceData = {
-      customerName: "Walk-in Customer",
+      customerName: customerName.trim() || "Walk-in Customer",
+      customerPhone: customerPhone.trim() || undefined,
+      customerAddress: customerAddress.trim() || undefined,
       deliveryCharge: deliveryCharge || "0",
       subtotal: subtotal.toString(),
       total: total.toString(),
@@ -127,6 +206,41 @@ export default function POS() {
     };
 
     createInvoiceMutation.mutate(invoiceData);
+  };
+
+  const handleSaveAsOrder = () => {
+    if (cart.length === 0) {
+      toast({
+        title: language === "bn" ? "কার্ট খালি" : "Cart empty",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!validateCustomerDetails()) {
+      return;
+    }
+
+    const orderData = {
+      customerName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
+      customerAddress: customerAddress.trim(),
+      deliveryLocation: deliveryLocation,
+      deliveryCharge: deliveryCharge || "0",
+      subtotal: subtotal.toString(),
+      total: total.toString(),
+      status: "confirmed",
+      items: cart.map((item) => ({
+        productId: item.id,
+        productNameEn: item.nameEn,
+        productNameBn: item.nameBn,
+        quantity: item.quantity,
+        price: item.price.toString(),
+        subtotal: (parseFloat(item.price.toString()) * item.quantity).toString(),
+      })),
+    };
+
+    createOrderMutation.mutate(orderData);
   };
 
   return (
@@ -194,7 +308,67 @@ export default function POS() {
               <CardTitle>{language === "bn" ? "বিল" : "Bill"}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="max-h-[400px] overflow-y-auto space-y-2">
+              <div className="space-y-3 pb-4 border-b">
+                <div>
+                  <Label htmlFor="customer-name">
+                    {language === "bn" ? "গ্রাহকের নাম" : "Customer Name"}
+                  </Label>
+                  <Input
+                    id="customer-name"
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder={language === "bn" ? "নাম লিখুন" : "Enter name"}
+                    data-testid="input-customer-name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="customer-phone">
+                    {language === "bn" ? "ফোন নম্বর" : "Phone Number"}
+                  </Label>
+                  <Input
+                    id="customer-phone"
+                    type="tel"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    placeholder={language === "bn" ? "ফোন নম্বর লিখুন" : "Enter phone number"}
+                    data-testid="input-customer-phone"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="customer-address">
+                    {language === "bn" ? "ঠিকানা" : "Address"}
+                  </Label>
+                  <Input
+                    id="customer-address"
+                    type="text"
+                    value={customerAddress}
+                    onChange={(e) => setCustomerAddress(e.target.value)}
+                    placeholder={language === "bn" ? "ঠিকানা লিখুন" : "Enter address"}
+                    data-testid="input-customer-address"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="delivery-location">
+                    {language === "bn" ? "ডেলিভারি লোকেশন" : "Delivery Location"}
+                  </Label>
+                  <Select value={deliveryLocation} onValueChange={handleDeliveryLocationChange}>
+                    <SelectTrigger id="delivery-location" data-testid="select-delivery-location">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="inside_dhaka">
+                        {language === "bn" ? "ঢাকার ভিতরে" : "Inside Dhaka"}
+                      </SelectItem>
+                      <SelectItem value="outside_dhaka">
+                        {language === "bn" ? "ঢাকার বাইরে" : "Outside Dhaka"}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="max-h-[300px] overflow-y-auto space-y-2">
                 {cart.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">
                     {language === "bn" ? "কার্ট খালি" : "Cart is empty"}
@@ -281,20 +455,37 @@ export default function POS() {
                   </div>
                 </div>
 
-                <Button
-                  className="w-full"
-                  size="lg"
-                  onClick={handlePrintInvoice}
-                  disabled={createInvoiceMutation.isPending}
-                  data-testid="button-print-invoice"
-                >
-                  <Printer className="h-4 w-4 mr-2" />
-                  {createInvoiceMutation.isPending
-                    ? t("common.loading")
-                    : language === "bn"
-                    ? "চালান প্রিন্ট করুন"
-                    : "Print Invoice"}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    className="flex-1"
+                    size="lg"
+                    variant="outline"
+                    onClick={handleSaveAsOrder}
+                    disabled={createOrderMutation.isPending}
+                    data-testid="button-save-order"
+                  >
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    {createOrderMutation.isPending
+                      ? t("common.loading")
+                      : language === "bn"
+                      ? "অর্ডার সংরক্ষণ"
+                      : "Save as Order"}
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    size="lg"
+                    onClick={handlePrintInvoice}
+                    disabled={createInvoiceMutation.isPending}
+                    data-testid="button-print-invoice"
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    {createInvoiceMutation.isPending
+                      ? t("common.loading")
+                      : language === "bn"
+                      ? "প্রিন্ট"
+                      : "Print"}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
