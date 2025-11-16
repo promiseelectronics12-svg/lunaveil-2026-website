@@ -25,7 +25,9 @@ LUNAVEIL is a full-featured business management system that combines:
 
 ### Backend (Server)
 - **Runtime**: Express.js
-- **Storage**: In-memory storage (MemStorage) for MVP
+- **Database**: PostgreSQL with Drizzle ORM
+- **Authentication**: Passport.js with bcrypt password hashing
+- **Session Management**: Express-session with secure cookies
 - **Validation**: Zod schemas for all data models
 - **File Structure**: Thin routes + storage interface pattern
 
@@ -34,6 +36,7 @@ LUNAVEIL is a full-featured business management system that combines:
 - **Orders**: Customer info, delivery location, items, status tracking
 - **Invoices**: POS and website orders with invoice numbers
 - **Company Settings**: Logo, delivery charges, contact info
+- **Admin Users**: Authenticated users with username, hashed password, and role
 
 ## Key Features
 
@@ -46,12 +49,14 @@ LUNAVEIL is a full-featured business management system that combines:
 6. **Dark Mode**: System-wide theme toggle
 
 ### Admin Dashboard
-1. **Dashboard**: Stats cards, recent orders, low stock alerts
-2. **Product Management**: CRUD operations with Bengali/English descriptions and image upload
-3. **Order Management**: View, confirm, reject orders from website
-4. **POS Billing**: In-store checkout with cart and delivery charges
-5. **Invoice History**: Search, filter, and reprint invoices
-6. **Settings**: Company info, logo upload, delivery charge configuration
+1. **Authentication**: Secure login with session management and protected routes
+2. **Dashboard**: Stats cards, recent orders, low stock alerts
+3. **Product Management**: CRUD operations with Bengali/English descriptions and image upload
+4. **Order Management**: View, confirm, reject orders from website
+5. **POS Billing**: In-store checkout with cart and delivery charges
+6. **Invoice History**: Search, filter, and reprint invoices
+7. **User Management**: Create and delete admin users (requires authentication)
+8. **Settings**: Company info, logo upload, delivery charge configuration
 
 ### Product Image Upload
 - **URL-based**: Paste image URLs for products
@@ -67,11 +72,21 @@ LUNAVEIL is a full-featured business management system that combines:
 - **Auto-print**: Opens print dialog automatically
 - **Customizable**: Footer text and company details from settings
 
+### Authentication & Security
+- **Login System**: Username/password authentication with session persistence
+- **Password Hashing**: Bcrypt with 10 rounds for secure password storage
+- **Protected Routes**: All admin routes require authentication
+- **Session Management**: Secure HTTP-only cookies with express-session
+- **Default Admin**: Initial admin user (username: admin, password: admin123)
+- **User Management**: Create and delete admin users from admin panel
+- **Logout**: Clears session and invalidates cached queries
+
 ## Tech Stack
 
 - **Frontend**: React, TypeScript, Tailwind CSS, Shadcn UI
 - **Backend**: Express.js, Node.js
-- **Database**: In-memory (upgradable to PostgreSQL)
+- **Database**: PostgreSQL with Drizzle ORM
+- **Authentication**: Passport.js + bcrypt
 - **Forms**: React Hook Form + Zod
 - **Data Fetching**: TanStack Query
 - **Routing**: Wouter
@@ -82,19 +97,21 @@ LUNAVEIL is a full-featured business management system that combines:
 ### Public Routes
 - `/` - Home page with product grid
 - `/checkout` - Checkout page
+- `/login` - Admin login page
 
-### Admin Routes (requires navigation via sidebar)
+### Admin Routes (requires authentication)
 - `/admin` - Dashboard
 - `/admin/products` - Product management
 - `/admin/orders` - Order management
 - `/admin/pos` - POS billing system
 - `/admin/invoices` - Invoice history
 - `/admin/invoices/:id/print` - Print invoice
+- `/admin/users` - User management
 - `/admin/settings` - Company settings
 
 ## Development Status
 
-**Current Phase**: MVP Complete - Production Ready ✅
+**Current Phase**: Production Ready with Authentication ✅
 - ✅ Data schema defined
 - ✅ Design system configured (LUNAVEIL purple theme)
 - ✅ Language context provider created
@@ -111,7 +128,20 @@ LUNAVEIL is a full-featured business management system that combines:
 
 ## Recent Changes
 
-### 2025-11-15 (Latest - Image Upload Feature)
+### 2025-11-16 (Latest - Admin Authentication System)
+- Implemented complete authentication system with Passport.js and bcrypt
+- Created admin users table in PostgreSQL database
+- Built login page with secure session management
+- Added protected routes that redirect to login when not authenticated
+- Created user management page for creating/deleting admin users
+- Set up password hashing with bcrypt (10 rounds)
+- Added logout functionality with proper query cache invalidation
+- Implemented error handling with JSON error messages
+- Created seed script for default admin user (username: admin, password: admin123)
+- Added Users link to admin sidebar
+- End-to-end tested: login, logout, protected routes, user management
+
+### 2025-11-15 (Image Upload Feature)
 - Added comprehensive image upload functionality to product form
 - Implemented controlled image URL input with React state
 - Created image preview grid with remove capability
