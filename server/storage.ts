@@ -11,6 +11,8 @@ import type {
   InsertInvoiceItem,
   CompanySettings,
   InsertCompanySettings,
+  AdminUser,
+  InsertAdminUser,
 } from "@shared/schema";
 import {
   products,
@@ -19,9 +21,11 @@ import {
   invoices,
   invoiceItems,
   companySettings,
+  adminUsers,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql } from "drizzle-orm";
+import bcrypt from "bcrypt";
 
 export interface IStorage {
   // Products
@@ -57,6 +61,13 @@ export interface IStorage {
   // Settings
   getSettings(): Promise<CompanySettings>;
   updateSettings(settings: InsertCompanySettings): Promise<CompanySettings>;
+
+  // Admin Users
+  getAdminUsers(): Promise<Omit<AdminUser, "password">[]>;
+  getAdminUser(id: string): Promise<AdminUser | undefined>;
+  getAdminUserByUsername(username: string): Promise<AdminUser | undefined>;
+  createAdminUser(user: InsertAdminUser): Promise<Omit<AdminUser, "password">>;
+  deleteAdminUser(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -246,6 +257,37 @@ export class DatabaseStorage implements IStorage {
       .where(eq(companySettings.id, existing.id))
       .returning();
     return updated;
+  }
+
+  // Admin Users
+  async getAdminUsers(): Promise<Omit<AdminUser, "password">[]> {
+    const users = await db.select().from(adminUsers).orderBy(desc(adminUsers.createdAt));
+    return users.map(({ password, ...user }) => user);
+  }
+
+  async getAdminUser(id: string): Promise<AdminUser | undefined> {
+    const [user] = await db.select().from(adminUsers).where(eq(adminUsers.id, id));
+    return user || undefined;
+  }
+
+  async getAdminUserByUsername(username: string): Promise<AdminUser | undefined> {
+    const [user] = await db.select().from(adminUsers).where(eq(adminUsers.username, username));
+    return user || undefined;
+  }
+
+  async createAdminUser(user: InsertAdminUser): Promise<Omit<AdminUser, "password">> {
+    const hashedPassword = await bcrypt.hash(user.password, 10);
+    const [newUser] = await db
+      .insert(adminUsers)
+      .values({ ...user, password: hashedPassword })
+      .returning();
+    const { password, ...userWithoutPassword } = newUser;
+    return userWithoutPassword;
+  }
+
+  async deleteAdminUser(id: string): Promise<boolean> {
+    const result = await db.delete(adminUsers).where(eq(adminUsers.id, id)).returning();
+    return result.length > 0;
   }
 }
 
