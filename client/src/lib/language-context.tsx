@@ -58,6 +58,7 @@ const translations: Record<string, Record<Language, string>> = {
   "admin.orders": { en: "Orders", bn: "অর্ডার" },
   "admin.pos": { en: "POS Billing", bn: "পিওএস বিলিং" },
   "admin.invoices": { en: "Invoices", bn: "চালান" },
+  "admin.users": { en: "Users", bn: "ব্যবহারকারী" },
   "admin.settings": { en: "Settings", bn: "সেটিংস" },
   
   // Common

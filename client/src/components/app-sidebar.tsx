@@ -5,6 +5,7 @@ import {
   Receipt,
   FileText,
   Settings,
+  Users,
 } from "lucide-react";
 import {
   Sidebar,
@@ -46,6 +47,11 @@ const menuItems = [
     titleKey: "admin.invoices",
     url: "/admin/invoices",
     icon: FileText,
+  },
+  {
+    titleKey: "admin.users",
+    url: "/admin/users",
+    icon: Users,
   },
   {
     titleKey: "admin.settings",
