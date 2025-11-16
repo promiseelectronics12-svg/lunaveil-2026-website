@@ -146,19 +146,24 @@ LUNAVEIL is a full-featured business management system that combines:
 
 ## Recent Changes
 
-### 2025-11-16 (Latest - Google OAuth Integration)
+### 2025-11-16 (Latest - Google OAuth Integration with Security Hardening)
 - Added Google Sign-In as alternative authentication method for admin login
 - Implemented secure Google OAuth 2.0 flow using Passport.js Google Strategy
 - Extended admin_users schema with `googleEmail` field (unique, nullable) and made `password` nullable
 - Created `/api/auth/google` and `/api/auth/google/callback` endpoints for OAuth flow
 - Added `/api/admin/link-google` endpoint for existing admins to link their Google account
-- Security fix: Removed auto-provisioning of admin accounts via Google OAuth
-- Google OAuth now requires pre-linked Google email (prevents unauthorized access)
-- Updated login page UI with "Sign in with Google" button and proper error handling
+- **Security Hardening**:
+  - Removed auto-provisioning: Google OAuth requires pre-linked Google email (prevents unauthorized access)
+  - Email normalization: Lowercase + Gmail alias collapsing (dots/plus addressing) prevents account hijacking
+  - Password confirmation: Link endpoint requires password re-entry before linking Google account
+  - Session rotation: Session regenerated after linking to prevent fixation attacks
+  - Error differentiation: Distinct error codes for authorization failures, configuration errors, and server issues
+  - Safe responses: Storage layer strips password from all user objects returned to client
+- Updated login page UI with "Sign in with Google" button and comprehensive error handling
 - Added Google Cloud Console redirect URI configuration support
 - Error messaging for unauthorized Google accounts with instructions to contact administrator
 - All Google OAuth users authenticated through same session management as traditional login
-- Architect reviewed and approved security model
+- Multiple architect reviews with all critical security vulnerabilities addressed and approved
 
 ### 2025-11-16 (Discounted Pricing Feature)
 - Implemented complete discounted pricing system with dual-price display
