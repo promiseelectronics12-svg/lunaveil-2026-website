@@ -66,6 +66,7 @@ export interface IStorage {
   getAdminUsers(): Promise<Omit<AdminUser, "password">[]>;
   getAdminUser(id: string): Promise<AdminUser | undefined>;
   getAdminUserByUsername(username: string): Promise<AdminUser | undefined>;
+  getAdminUserByGoogleEmail(googleEmail: string): Promise<AdminUser | undefined>;
   createAdminUser(user: InsertAdminUser): Promise<Omit<AdminUser, "password">>;
   deleteAdminUser(id: string): Promise<boolean>;
 }
@@ -292,8 +293,14 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
+  async getAdminUserByGoogleEmail(googleEmail: string): Promise<AdminUser | undefined> {
+    const [user] = await db.select().from(adminUsers).where(eq(adminUsers.googleEmail, googleEmail));
+    return user || undefined;
+  }
+
   async createAdminUser(user: InsertAdminUser): Promise<Omit<AdminUser, "password">> {
-    const hashedPassword = await bcrypt.hash(user.password, 10);
+    // Hash password if provided, otherwise use null for OAuth users
+    const hashedPassword = user.password ? await bcrypt.hash(user.password, 10) : null;
     const [newUser] = await db
       .insert(adminUsers)
       .values({ ...user, password: hashedPassword })

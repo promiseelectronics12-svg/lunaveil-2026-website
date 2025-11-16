@@ -57,6 +57,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google OAuth routes
+  app.get("/api/auth/google",
+    passport.authenticate("google", { scope: ["profile", "email"] })
+  );
+
+  app.get("/api/auth/google/callback",
+    passport.authenticate("google", { failureRedirect: "/login" }),
+    (req, res) => {
+      // Successful authentication, redirect to admin dashboard
+      res.redirect("/admin");
+    }
+  );
+
   // Admin user management routes (protected)
   app.get("/api/admin/users", requireAuth, async (_req, res) => {
     try {
