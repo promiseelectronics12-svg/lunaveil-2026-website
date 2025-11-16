@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -17,6 +18,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { LogIn } from "lucide-react";
+import { SiGoogle } from "react-icons/si";
 import logoImage from "@assets/generated_images/LUNAVEIL_brand_logo_design_9b211d42.png";
 
 const loginSchema = z.object({
@@ -124,6 +126,26 @@ export default function Login() {
               >
                 <LogIn className="h-4 w-4 mr-2" />
                 {loginMutation.isPending ? "Signing in..." : "Sign In"}
+              </Button>
+
+              <div className="relative my-4">
+                <Separator />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="bg-card px-2 text-sm text-muted-foreground">
+                    Or continue with
+                  </span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => window.location.href = "/api/auth/google"}
+                data-testid="button-google-signin"
+              >
+                <SiGoogle className="h-4 w-4 mr-2" />
+                Sign in with Google
               </Button>
             </form>
           </Form>
