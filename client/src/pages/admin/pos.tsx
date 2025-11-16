@@ -5,10 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Search, Plus, Minus, Trash2, Printer, ShoppingCart } from "lucide-react";
+import { Search, Plus, Minus, Trash2, Printer, Link as LinkIcon } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useToast } from "@/hooks/use-toast";
-import type { Product, CompanySettings } from "@shared/schema";
+import type { Product, CompanySettings, Order } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -17,6 +17,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface CartItem extends Product {
   quantity: number;
@@ -32,6 +41,8 @@ export default function POS() {
   const [customerAddress, setCustomerAddress] = useState("");
   const [deliveryLocation, setDeliveryLocation] = useState("inside_dhaka");
   const [deliveryCharge, setDeliveryCharge] = useState("60");
+  const [ordersDialogOpen, setOrdersDialogOpen] = useState(false);
+  const [orderSearchQuery, setOrderSearchQuery] = useState("");
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ["/api/products"],
@@ -39,6 +50,11 @@ export default function POS() {
 
   const { data: settings } = useQuery<CompanySettings>({
     queryKey: ["/api/settings"],
+  });
+
+  const { data: orders = [] } = useQuery<Order[]>({
+    queryKey: ["/api/orders"],
+    enabled: ordersDialogOpen,
   });
 
   const createInvoiceMutation = useMutation({
@@ -55,22 +71,6 @@ export default function POS() {
       });
       resetForm();
       window.open(`/admin/invoices/${invoice.id}/print`, "_blank");
-    },
-  });
-
-  const createOrderMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/orders", data);
-      return response;
-    },
-    onSuccess: (order: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
-      toast({
-        title: language === "bn" ? "অর্ডার তৈরি হয়েছে" : "Order created",
-        description: language === "bn" ? "অর্ডার সফলভাবে সংরক্ষিত হয়েছে" : "Order saved successfully",
-      });
-      resetForm();
     },
   });
 
@@ -208,40 +208,27 @@ export default function POS() {
     createInvoiceMutation.mutate(invoiceData);
   };
 
-  const handleSaveAsOrder = () => {
-    if (cart.length === 0) {
-      toast({
-        title: language === "bn" ? "কার্ট খালি" : "Cart empty",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!validateCustomerDetails()) {
-      return;
-    }
-
-    const orderData = {
-      customerName: customerName.trim(),
-      customerPhone: customerPhone.trim(),
-      customerAddress: customerAddress.trim(),
-      deliveryLocation: deliveryLocation,
-      deliveryCharge: deliveryCharge || "0",
-      subtotal: subtotal.toString(),
-      total: total.toString(),
-      status: "confirmed",
-      items: cart.map((item) => ({
-        productId: item.id,
-        productNameEn: item.nameEn,
-        productNameBn: item.nameBn,
-        quantity: item.quantity,
-        price: item.price.toString(),
-        subtotal: (parseFloat(item.price.toString()) * item.quantity).toString(),
-      })),
-    };
-
-    createOrderMutation.mutate(orderData);
+  const loadCustomerFromOrder = (order: Order) => {
+    setCustomerName(order.customerName);
+    setCustomerPhone(order.customerPhone);
+    setCustomerAddress(order.customerAddress);
+    setDeliveryLocation(order.deliveryLocation);
+    setDeliveryCharge(order.deliveryCharge);
+    setOrdersDialogOpen(false);
+    toast({
+      title: language === "bn" ? "গ্রাহকের তথ্য লোড হয়েছে" : "Customer info loaded",
+      description: language === "bn" ? `${order.customerName} এর তথ্য` : `Loaded ${order.customerName}'s information`,
+    });
   };
+
+  const filteredOrders = orders.filter((order) => {
+    const query = orderSearchQuery.toLowerCase();
+    return (
+      order.customerName.toLowerCase().includes(query) ||
+      order.customerPhone.toLowerCase().includes(query) ||
+      order.customerAddress.toLowerCase().includes(query)
+    );
+  });
 
   return (
     <div className="p-8">
@@ -456,21 +443,98 @@ export default function POS() {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button
-                    className="flex-1"
-                    size="lg"
-                    variant="outline"
-                    onClick={handleSaveAsOrder}
-                    disabled={createOrderMutation.isPending}
-                    data-testid="button-save-order"
-                  >
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    {createOrderMutation.isPending
-                      ? t("common.loading")
-                      : language === "bn"
-                      ? "অর্ডার সংরক্ষণ"
-                      : "Save as Order"}
-                  </Button>
+                  <Dialog open={ordersDialogOpen} onOpenChange={setOrdersDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button
+                        className="flex-1"
+                        size="lg"
+                        variant="outline"
+                        data-testid="button-link-orders"
+                      >
+                        <LinkIcon className="h-4 w-4 mr-2" />
+                        {language === "bn" ? "অর্ডার থেকে লোড" : "Link to Orders"}
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-3xl">
+                      <DialogHeader>
+                        <DialogTitle>
+                          {language === "bn" ? "অর্ডার নির্বাচন করুন" : "Select Order"}
+                        </DialogTitle>
+                        <DialogDescription>
+                          {language === "bn"
+                            ? "গ্রাহকের তথ্য লোড করতে একটি অর্ডার নির্বাচন করুন"
+                            : "Select an order to load customer information"}
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            type="search"
+                            placeholder={language === "bn" ? "নাম, ফোন বা ঠিকানা অনুসন্ধান করুন" : "Search by name, phone, or address"}
+                            value={orderSearchQuery}
+                            onChange={(e) => setOrderSearchQuery(e.target.value)}
+                            className="pl-10"
+                            data-testid="input-order-search"
+                          />
+                        </div>
+                        <ScrollArea className="h-[400px] pr-4">
+                          {filteredOrders.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                              {language === "bn" ? "কোন অর্ডার পাওয়া যায়নি" : "No orders found"}
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {filteredOrders.map((order) => (
+                                <Card
+                                  key={order.id}
+                                  className="hover-elevate cursor-pointer"
+                                  onClick={() => loadCustomerFromOrder(order)}
+                                  data-testid={`order-card-${order.id}`}
+                                >
+                                  <CardContent className="p-4">
+                                    <div className="flex justify-between items-start">
+                                      <div className="space-y-1">
+                                        <div className="font-semibold" data-testid={`order-name-${order.id}`}>
+                                          {order.customerName}
+                                        </div>
+                                        <div className="text-sm text-muted-foreground">
+                                          {order.customerPhone}
+                                        </div>
+                                        <div className="text-sm text-muted-foreground">
+                                          {order.customerAddress}
+                                        </div>
+                                        <div className="text-sm">
+                                          <span className="text-muted-foreground">
+                                            {language === "bn" ? "ডেলিভারি: " : "Delivery: "}
+                                          </span>
+                                          {order.deliveryLocation === "inside_dhaka"
+                                            ? language === "bn"
+                                              ? "ঢাকার ভিতরে"
+                                              : "Inside Dhaka"
+                                            : language === "bn"
+                                            ? "ঢাকার বাইরে"
+                                            : "Outside Dhaka"}
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <div className="font-semibold text-primary">
+                                          ৳{parseFloat(order.total).toFixed(2)}
+                                        </div>
+                                        <div className="text-sm text-muted-foreground capitalize">
+                                          {order.status}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          )}
+                        </ScrollArea>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                   <Button
                     className="flex-1"
                     size="lg"
