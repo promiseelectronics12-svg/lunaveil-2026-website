@@ -1,8 +1,14 @@
 import { useLanguage } from "@/lib/language-context";
 import { Facebook, Instagram, Mail, Phone, MapPin } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import type { CompanySettings } from "@shared/schema";
 
 export function CustomerFooter() {
   const { t } = useLanguage();
+  
+  const { data: settings } = useQuery<CompanySettings>({
+    queryKey: ["/api/settings"],
+  });
 
   return (
     <footer className="bg-card border-t mt-24">
@@ -42,15 +48,17 @@ export function CustomerFooter() {
             <ul className="space-y-3">
               <li className="flex items-start gap-2 text-sm text-muted-foreground">
                 <Phone className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <span>+880 1XXX-XXXXXX</span>
+                <span>{settings?.companyPhone || "+880 1234-567890"}</span>
               </li>
-              <li className="flex items-start gap-2 text-sm text-muted-foreground">
-                <Mail className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <span>contact@lunaveil.com</span>
-              </li>
+              {settings?.companyEmail && (
+                <li className="flex items-start gap-2 text-sm text-muted-foreground">
+                  <Mail className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <span>{settings.companyEmail}</span>
+                </li>
+              )}
               <li className="flex items-start gap-2 text-sm text-muted-foreground">
                 <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <span>Dhaka, Bangladesh</span>
+                <span>{settings?.companyAddress || "Dhaka, Bangladesh"}</span>
               </li>
             </ul>
           </div>
