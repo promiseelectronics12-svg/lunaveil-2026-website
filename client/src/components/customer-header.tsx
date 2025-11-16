@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/lib/language-context";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import logoImage from "@assets/generated_images/LUNAVEIL_brand_logo_design_9b211d42.png";
 
 interface CustomerHeaderProps {
@@ -14,6 +15,10 @@ export function CustomerHeader({ cartItemCount = 0, onCartClick }: CustomerHeade
   const { language, setLanguage, t } = useLanguage();
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const { data: settings } = useQuery({
+    queryKey: ["/api/settings"],
+  });
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") as "light" | "dark";
@@ -30,13 +35,15 @@ export function CustomerHeader({ cartItemCount = 0, onCartClick }: CustomerHeade
     document.documentElement.classList.toggle("dark", newTheme === "dark");
   };
 
+  const currentLogo = settings?.logoUrl || logoImage;
+
   return (
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20 gap-4">
           <div className="flex items-center gap-8">
             <a href="/" className="flex items-center gap-3" data-testid="link-home">
-              <img src={logoImage} alt="LUNAVEIL" className="h-10 w-10 object-contain" />
+              <img src={currentLogo} alt="LUNAVEIL" className="h-10 w-10 object-contain" />
               <span className="text-2xl font-serif font-semibold text-foreground hidden sm:block">
                 LUNAVEIL
               </span>

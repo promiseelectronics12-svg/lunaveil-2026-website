@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useLanguage } from "@/lib/language-context";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import logoImage from "@assets/generated_images/LUNAVEIL_brand_logo_design_9b211d42.png";
 
 const menuItems = [
@@ -57,12 +58,18 @@ export function AppSidebar() {
   const { t } = useLanguage();
   const [location] = useLocation();
 
+  const { data: settings } = useQuery({
+    queryKey: ["/api/settings"],
+  });
+
+  const currentLogo = settings?.logoUrl || logoImage;
+
   return (
     <Sidebar>
       <SidebarContent>
         <div className="p-4 border-b border-sidebar-border">
           <div className="flex items-center gap-3">
-            <img src={logoImage} alt="LUNAVEIL" className="h-10 w-10 object-contain" />
+            <img src={currentLogo} alt="LUNAVEIL" className="h-10 w-10 object-contain" />
             <div>
               <h2 className="font-serif font-semibold text-lg text-sidebar-foreground">
                 LUNAVEIL

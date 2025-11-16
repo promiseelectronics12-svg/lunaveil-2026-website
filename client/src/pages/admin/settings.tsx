@@ -40,6 +40,15 @@ export default function Settings() {
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      companyName: "LUNAVEIL",
+      companyPhone: "",
+      companyAddress: "",
+      logoUrl: "",
+      invoiceFooterText: "Thank you for shopping with LUNAVEIL",
+      deliveryChargeInsideDhaka: "60",
+      deliveryChargeOutsideDhaka: "120",
+    },
     values: settings
       ? {
           companyName: settings.companyName || "LUNAVEIL",
