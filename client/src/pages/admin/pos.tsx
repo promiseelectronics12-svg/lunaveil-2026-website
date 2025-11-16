@@ -213,7 +213,14 @@ export default function POS() {
     setCustomerPhone(order.customerPhone);
     setCustomerAddress(order.customerAddress);
     setDeliveryLocation(order.deliveryLocation);
-    setDeliveryCharge(order.deliveryCharge.toString());
+    
+    const charge = order.deliveryCharge 
+      ? order.deliveryCharge.toString() 
+      : (order.deliveryLocation === "inside_dhaka" 
+          ? settings?.deliveryChargeInsideDhaka || "60"
+          : settings?.deliveryChargeOutsideDhaka || "120");
+    setDeliveryCharge(charge);
+    
     setOrdersDialogOpen(false);
     toast({
       title: language === "bn" ? "গ্রাহকের তথ্য লোড হয়েছে" : "Customer info loaded",
