@@ -346,25 +346,17 @@ export default function Products() {
                     const handleAddImage = () => {
                       const url = newImageUrl.trim();
                       const currentImages = field.value || [];
-                      console.log('Adding image:', { url, currentImages, newImageUrl });
                       if (url && !currentImages.includes(url)) {
-                        const newImages = [...currentImages, url];
-                        console.log('Updating field with:', newImages);
-                        field.onChange(newImages);
+                        field.onChange([...currentImages, url]);
                         setNewImageUrl("");
-                      } else {
-                        console.log('Skipped adding:', { isEmpty: !url, isDuplicate: currentImages.includes(url) });
                       }
                     };
 
                     const handleRemoveImage = (index: number) => {
                       const currentImages = field.value || [];
                       const newImages = currentImages.filter((_, i) => i !== index);
-                      console.log('Removing image at index', index, 'New images:', newImages);
                       field.onChange(newImages);
                     };
-
-                    console.log('Rendering images field. Current value:', field.value);
 
                     return (
                       <FormItem>
