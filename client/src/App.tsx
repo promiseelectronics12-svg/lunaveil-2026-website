@@ -75,7 +75,16 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
   const handleLogout = async () => {
     try {
       await apiRequest("POST", "/api/auth/logout");
-      queryClient.clear();
+      queryClient.removeQueries({
+        predicate: ({ queryKey }) => {
+          return queryKey.some((key) => {
+            if (typeof key === "string") {
+              return key.startsWith("/api/auth") || key.startsWith("/api/admin");
+            }
+            return false;
+          });
+        },
+      });
       toast({
         title: "Logged out",
         description: "You have been logged out successfully",

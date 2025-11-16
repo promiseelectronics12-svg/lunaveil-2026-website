@@ -48,10 +48,10 @@ export default function Login() {
       });
       setLocation("/admin");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Login failed",
-        description: error?.message || "Invalid username or password",
+        description: error.message || "Invalid username or password",
         variant: "destructive",
       });
     },

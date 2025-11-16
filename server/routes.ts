@@ -23,8 +23,21 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
-  app.post("/api/auth/login", passport.authenticate("local"), (req, res) => {
-    res.json({ user: req.user, message: "Login successful" });
+  app.post("/api/auth/login", (req, res, next) => {
+    passport.authenticate("local", (err: Error, user: Express.User, info: { message?: string }) => {
+      if (err) {
+        return res.status(500).json({ message: "Internal server error" });
+      }
+      if (!user) {
+        return res.status(401).json({ message: info?.message || "Invalid username or password" });
+      }
+      req.logIn(user, (err) => {
+        if (err) {
+          return res.status(500).json({ message: "Login failed" });
+        }
+        res.json({ user, message: "Login successful" });
+      });
+    })(req, res, next);
   });
 
   app.post("/api/auth/logout", (req, res) => {
