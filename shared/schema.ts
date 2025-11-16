@@ -146,7 +146,8 @@ export type InvoiceItem = typeof invoiceItems.$inferSelect;
 export const adminUsers = pgTable("admin_users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
-  password: text("password").notNull(), // hashed password
+  password: text("password"), // hashed password (nullable for Google OAuth users)
+  googleEmail: text("google_email").unique(), // Google account email for OAuth login
   role: text("role").notNull().default("admin"), // admin, super_admin
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
