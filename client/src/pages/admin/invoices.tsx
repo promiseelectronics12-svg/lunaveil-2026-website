@@ -10,8 +10,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useQuery } from "@tanstack/react-query";
-import { Search, Printer, FileDown, FileSpreadsheet } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { Search, Printer, FileDown, FileSpreadsheet, RotateCcw } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import type { Invoice, InvoiceItem, CompanySettings } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -71,7 +83,7 @@ export default function Invoices() {
       const items: InvoiceItem[] = await itemsResponse.json();
 
       exportInvoiceToPDF({ ...invoice, items }, settings, language);
-      
+
       toast({
         title: language === "bn" ? "সফল" : "Success",
         description: language === "bn" ? "পিডিএফ ডাউনলোড হয়েছে" : "PDF downloaded successfully",
@@ -95,6 +107,27 @@ export default function Invoices() {
       description: language === "bn" ? "এক্সেল ডাউনলোড হয়েছে" : "Excel downloaded successfully",
     });
   };
+
+  const returnInvoiceMutation = useMutation({
+    mutationFn: async (invoiceId: string) => {
+      return await apiRequest("POST", `/api/invoices/${invoiceId}/return`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      toast({
+        title: language === "bn" ? "ফেরত সফল" : "Return successful",
+        description: language === "bn" ? "চালান ফেরত হয়েছে এবং পণ্য স্টক পুনঃস্থাপিত হয়েছে" : "Invoice returned and products restocked",
+      });
+    },
+    onError: () => {
+      toast({
+        title: language === "bn" ? "ত্রুটি" : "Error",
+        description: language === "bn" ? "চালান ফেরত করতে ব্যর্থ" : "Failed to return invoice",
+        variant: "destructive",
+      });
+    },
+  });
 
   return (
     <div className="p-8">
@@ -158,11 +191,20 @@ export default function Invoices() {
                         {new Date(invoice.createdAt!).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={invoice.isPOS ? "secondary" : "default"}>
-                          {invoice.isPOS ? "POS" : "Website"}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={invoice.isPOS ? "secondary" : "default"}>
+                            {invoice.isPOS ? "POS" : "Website"}
+                          </Badge>
+                          {invoice.isReturned && (
+                            <Badge variant="destructive">
+                              {language === "bn" ? "ফেরত" : "Returned"}
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
-                      <TableCell className="font-semibold">৳{invoice.total}</TableCell>
+                      <TableCell className={`font-semibold ${invoice.isReturned ? 'line-through text-muted-foreground' : ''}`}>
+                        ৳{invoice.total}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
@@ -186,6 +228,43 @@ export default function Invoices() {
                           >
                             <Printer className="h-4 w-4" />
                           </Button>
+                          {!invoice.isReturned && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="text-orange-600 hover:text-orange-700"
+                                  data-testid={`button-return-${invoice.id}`}
+                                >
+                                  <RotateCcw className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    {language === "bn" ? "চালান ফেরত করুন" : "Return Invoice"}
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    {language === "bn"
+                                      ? `আপনি কি নিশ্চিত #${invoice.invoiceNumber} চালান ফেরত করতে চান? এটি পণ্যগুলি পুনরায় স্টকে যোগ করবে।`
+                                      : `Are you sure you want to return invoice #${invoice.invoiceNumber}? This will restock the products.`}
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>
+                                    {language === "bn" ? "বাতিল" : "Cancel"}
+                                  </AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => returnInvoiceMutation.mutate(invoice.id)}
+                                    className="bg-orange-600 hover:bg-orange-700"
+                                  >
+                                    {language === "bn" ? "ফেরত করুন" : "Return"}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

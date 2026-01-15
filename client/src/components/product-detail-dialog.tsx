@@ -43,7 +43,7 @@ export function ProductDetailDialog({
             {name}
           </DialogTitle>
           <DialogDescription className="sr-only">
-            {language === "bn" ? "পণ্যের বিস্তারিত তথ্য" : "Product details and information"}
+            {t("product.details")}
           </DialogDescription>
         </DialogHeader>
 
@@ -60,7 +60,7 @@ export function ProductDetailDialog({
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                  {language === "bn" ? "ছবি নেই" : "No image"}
+                  {t("product.noImage")}
                 </div>
               )}
               {isOutOfStock && (
@@ -81,11 +81,10 @@ export function ProductDetailDialog({
                   <button
                     key={index}
                     onClick={() => setSelectedImageIndex(index)}
-                    className={`aspect-square rounded-md overflow-hidden border-2 transition-all hover-elevate ${
-                      selectedImageIndex === index
+                    className={`aspect-square rounded-md overflow-hidden border-2 transition-all hover-elevate ${selectedImageIndex === index
                         ? "border-primary"
                         : "border-transparent"
-                    }`}
+                      }`}
                     data-testid={`button-thumbnail-${index}`}
                   >
                     <img
@@ -129,22 +128,19 @@ export function ProductDetailDialog({
             {/* Stock Status */}
             <div>
               <p className="text-sm text-muted-foreground">
-                {language === "bn" ? "স্টক" : "Stock"}:
+                {t("product.stockLabel")}:
                 <span
-                  className={`ml-2 font-semibold ${
-                    isOutOfStock
+                  className={`ml-2 font-semibold ${isOutOfStock
                       ? "text-destructive"
                       : product.stock < 10
-                      ? "text-orange-600"
-                      : "text-green-600"
-                  }`}
+                        ? "text-orange-600"
+                        : "text-green-600"
+                    }`}
                   data-testid="text-product-detail-stock"
                 >
                   {isOutOfStock
-                    ? language === "bn"
-                      ? "স্টক শেষ"
-                      : "Out of Stock"
-                    : `${product.stock} ${language === "bn" ? "টি" : "units"}`}
+                    ? t("product.outOfStock")
+                    : `${product.stock} ${t("product.units")}`}
                 </span>
               </p>
             </div>
@@ -152,7 +148,7 @@ export function ProductDetailDialog({
             {/* Description */}
             <div>
               <h3 className="font-semibold text-lg mb-2">
-                {language === "bn" ? "বিবরণ" : "Description"}
+                {t("product.description")}
               </h3>
               <p className="text-muted-foreground leading-relaxed" data-testid="text-product-detail-description">
                 {description}

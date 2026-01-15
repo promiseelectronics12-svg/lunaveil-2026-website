@@ -52,7 +52,24 @@ export default function InvoicePrint() {
 
   return (
     <div className="print:p-0 p-8">
-      <div className="max-w-4xl mx-auto bg-white text-black p-12 print:p-8">
+      <div className="max-w-4xl mx-auto bg-white text-black p-12 print:p-8 relative">
+        {/* RETURNED Watermark */}
+        {invoice.isReturned && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
+            <div className="text-red-500/20 text-8xl font-bold transform -rotate-45 select-none whitespace-nowrap">
+              RETURNED ORDER
+            </div>
+          </div>
+        )}
+
+        {/* Diagonal strikethrough line for returned invoices */}
+        {invoice.isReturned && (
+          <div className="absolute inset-0 pointer-events-none">
+            <svg className="w-full h-full" preserveAspectRatio="none">
+              <line x1="0" y1="0" x2="100%" y2="100%" stroke="red" strokeWidth="2" strokeOpacity="0.3" />
+            </svg>
+          </div>
+        )}
         <div className="text-center mb-8 border-b pb-6">
           {logoUrl && (
             <img
@@ -85,6 +102,11 @@ export default function InvoicePrint() {
             </p>
             {invoice.isPOS && (
               <p className="text-sm"><strong>Type:</strong> POS</p>
+            )}
+            {invoice.isReturned && (
+              <p className="text-sm text-red-600">
+                <strong>Returned:</strong> {invoice.returnedAt ? new Date(invoice.returnedAt).toLocaleDateString() : 'Yes'}
+              </p>
             )}
           </div>
         </div>

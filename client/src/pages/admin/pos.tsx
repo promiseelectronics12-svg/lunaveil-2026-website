@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Search, Plus, Minus, Trash2, Printer, Link as LinkIcon } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useToast } from "@/hooks/use-toast";
-import type { Product, CompanySettings, Order } from "@shared/schema";
+import type { Product, CompanySettings, Order, Promotion } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -43,6 +43,7 @@ export default function POS() {
   const [deliveryCharge, setDeliveryCharge] = useState("60");
   const [ordersDialogOpen, setOrdersDialogOpen] = useState(false);
   const [orderSearchQuery, setOrderSearchQuery] = useState("");
+  const [linkedOrderId, setLinkedOrderId] = useState<string | null>(null);
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ["/api/products"],
@@ -57,20 +58,79 @@ export default function POS() {
     enabled: ordersDialogOpen,
   });
 
+  const { data: promotions = [] } = useQuery<Promotion[]>({
+    queryKey: ["/api/promotions/active"],
+  });
+
+  const subtotal = cart.reduce(
+    (sum, item) => {
+      const price = item.discountedPrice
+        ? parseFloat(item.discountedPrice.toString())
+        : parseFloat(item.price.toString());
+      return sum + price * item.quantity;
+    },
+    0
+  );
+
+  // Recalculate delivery charge when dependencies change
+  useEffect(() => {
+    if (!settings) return;
+
+    let charge = deliveryLocation === "inside_dhaka"
+      ? parseFloat(settings.deliveryChargeInsideDhaka)
+      : parseFloat(settings.deliveryChargeOutsideDhaka);
+
+    // Apply free delivery promotion
+    const freeDeliveryPromo = promotions.find(p => p.type === 'free_delivery' && p.isActive);
+    if (freeDeliveryPromo) {
+      const minOrderValue = parseFloat(freeDeliveryPromo.minOrderValue || "0");
+      if (subtotal >= minOrderValue) {
+        charge = 0;
+      }
+    }
+
+    setDeliveryCharge(charge.toString());
+  }, [subtotal, deliveryLocation, settings, promotions]);
+
   const createInvoiceMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiRequest("POST", "/api/invoices", data);
       return response;
     },
-    onSuccess: (invoice: any) => {
+    onSuccess: async (invoice: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+
+      // If this invoice was created from a linked order, mark it as delivered
+      if (linkedOrderId) {
+        try {
+          await apiRequest("PATCH", `/api/orders/${linkedOrderId}`, { status: "delivered" });
+          queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+          toast({
+            title: language === "bn" ? "অর্ডার ডেলিভার হয়েছে" : "Order delivered",
+            description: language === "bn"
+              ? "অর্ডার স্ট্যাটাস ডেলিভার্ড এ আপডেট হয়েছে"
+              : "Order status updated to delivered",
+          });
+        } catch (error) {
+          console.error("Failed to update order status:", error);
+        }
+      }
+
       toast({
         title: language === "bn" ? "চালান তৈরি হয়েছে" : "Invoice created",
         description: `Invoice #${invoice.invoiceNumber}`,
       });
       resetForm();
       window.open(`/admin/invoices/${invoice.id}/print`, "_blank");
+    },
+    onError: (error: Error) => {
+      console.error("Failed to create invoice:", error);
+      toast({
+        title: language === "bn" ? "ত্রুটি" : "Error",
+        description: error.message || (language === "bn" ? "চালান তৈরি করতে ব্যর্থ" : "Failed to create invoice"),
+        variant: "destructive",
+      });
     },
   });
 
@@ -124,16 +184,6 @@ export default function POS() {
     setCart((prev) => prev.filter((item) => item.id !== productId));
   };
 
-  const subtotal = cart.reduce(
-    (sum, item) => {
-      const price = item.discountedPrice 
-        ? parseFloat(item.discountedPrice.toString()) 
-        : parseFloat(item.price.toString());
-      return sum + price * item.quantity;
-    },
-    0
-  );
-
   const total = subtotal + parseFloat(deliveryCharge || "0");
 
   const resetForm = () => {
@@ -142,17 +192,13 @@ export default function POS() {
     setCustomerPhone("");
     setCustomerAddress("");
     setDeliveryLocation("inside_dhaka");
-    setDeliveryCharge(settings?.deliveryChargeInsideDhaka || "60");
+    // Delivery charge will be reset by useEffect
+    setLinkedOrderId(null);
   };
 
   const handleDeliveryLocationChange = (value: string) => {
     setDeliveryLocation(value);
-    if (settings) {
-      const charge = value === "inside_dhaka" 
-        ? settings.deliveryChargeInsideDhaka 
-        : settings.deliveryChargeOutsideDhaka;
-      setDeliveryCharge(charge);
-    }
+    // Delivery charge will be updated by useEffect
   };
 
   const validateCustomerDetails = () => {
@@ -202,8 +248,8 @@ export default function POS() {
       isPOS: true,
       items: cart.map((item) => {
         const regularPrice = parseFloat(item.price.toString());
-        const effectivePrice = item.discountedPrice 
-          ? parseFloat(item.discountedPrice.toString()) 
+        const effectivePrice = item.discountedPrice
+          ? parseFloat(item.discountedPrice.toString())
           : regularPrice;
         return {
           productId: item.id,
@@ -220,25 +266,69 @@ export default function POS() {
     createInvoiceMutation.mutate(invoiceData);
   };
 
-  const loadCustomerFromOrder = (order: Order) => {
+  const loadCustomerFromOrder = async (order: Order) => {
     setCustomerName(order.customerName);
     setCustomerPhone(order.customerPhone);
     setCustomerAddress(order.customerAddress);
     setDeliveryLocation(order.deliveryLocation);
-    
-    const charge = order.deliveryCharge 
-      ? order.deliveryCharge.toString() 
-      : (order.deliveryLocation === "inside_dhaka" 
-          ? settings?.deliveryChargeInsideDhaka || "60"
-          : settings?.deliveryChargeOutsideDhaka || "120");
-    setDeliveryCharge(charge);
-    
+    setLinkedOrderId(order.id);
+
+    // Delivery charge will be calculated by useEffect based on the loaded items (subtotal)
+
+    try {
+      const items = await apiRequest("GET", `/api/orders/${order.id}/items`) as any[];
+
+      const newCartItems: CartItem[] = items.map((item) => {
+        // Try to find the product in the products array
+        const product = products.find(p => p.id === item.productId);
+
+        if (product) {
+          return {
+            ...product,
+            quantity: item.quantity
+          };
+        }
+
+        // Fallback: Create cart item from order item data
+        return {
+          id: item.productId,
+          nameEn: item.productNameEn,
+          nameBn: item.productNameBn,
+          descriptionEn: "",
+          descriptionBn: "",
+          price: item.regularPrice || item.price,
+          discountedPrice: item.price !== item.regularPrice ? item.price : null,
+          stock: 9999, // Allow adding since it was already ordered
+          category: "",
+          images: [],
+          isHot: false,
+          hotPrice: null,
+          createdAt: null,
+          updatedAt: null,
+          quantity: item.quantity
+        } as CartItem;
+      });
+
+      setCart(newCartItems);
+
+      toast({
+        title: language === "bn" ? "অর্ডার লোড হয়েছে" : "Order loaded",
+        description: language === "bn"
+          ? `${order.customerName} এর তথ্য এবং ${newCartItems.length}টি পণ্য`
+          : `Loaded ${order.customerName}'s info and ${newCartItems.length} products`,
+      });
+    } catch (error) {
+      console.error("Failed to load order items:", error);
+      toast({
+        title: language === "bn" ? "ত্রুটি" : "Error",
+        description: language === "bn" ? "পণ্য লোড করতে ব্যর্থ" : "Failed to load order items",
+        variant: "destructive",
+      });
+    }
+
     setOrdersDialogOpen(false);
-    toast({
-      title: language === "bn" ? "গ্রাহকের তথ্য লোড হয়েছে" : "Customer info loaded",
-      description: language === "bn" ? `${order.customerName} এর তথ্য` : `Loaded ${order.customerName}'s information`,
-    });
   };
+
 
   const filteredOrders = orders.filter((order) => {
     const query = orderSearchQuery.toLowerCase();
@@ -471,7 +561,7 @@ export default function POS() {
                         data-testid="button-link-orders"
                       >
                         <LinkIcon className="h-4 w-4 mr-2" />
-                        {language === "bn" ? "অর্ডার থেকে লোড" : "Link to Orders"}
+                        {language === "bn" ? "অর্ডার থেকে লোড" : "Link from Orders"}
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-3xl">
@@ -553,8 +643,8 @@ export default function POS() {
                                               ? "ঢাকার ভিতরে"
                                               : "Inside Dhaka"
                                             : language === "bn"
-                                            ? "ঢাকার বাইরে"
-                                            : "Outside Dhaka"}
+                                              ? "ঢাকার বাইরে"
+                                              : "Outside Dhaka"}
                                         </div>
                                       </div>
                                       <div className="text-right">
@@ -586,8 +676,8 @@ export default function POS() {
                     {createInvoiceMutation.isPending
                       ? t("common.loading")
                       : language === "bn"
-                      ? "প্রিন্ট"
-                      : "Print"}
+                        ? "প্রিন্ট"
+                        : "Print"}
                   </Button>
                 </div>
               </div>

@@ -3,13 +3,17 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { LanguageProvider } from "@/lib/language-context";
+import { LanguageProvider, useLanguage } from "@/lib/language-context";
+import { CartProvider } from "@/lib/cart-context";
+import { FlyToCartProvider } from "@/lib/fly-to-cart-context";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
+import ProductsPage from "@/pages/products";
 import Checkout from "@/pages/checkout";
 import Login from "@/pages/login";
+import CollectionPage from "@/pages/collection";
 import Dashboard from "@/pages/admin/dashboard";
 import Products from "@/pages/admin/products";
 import Orders from "@/pages/admin/orders";
@@ -18,6 +22,11 @@ import Invoices from "@/pages/admin/invoices";
 import InvoicePrint from "@/pages/admin/invoice-print";
 import Settings from "@/pages/admin/settings";
 import AdminUsers from "@/pages/admin/users";
+import AdminCollections from "@/pages/admin/collections";
+import AdminPromotions from "@/pages/admin/promotions";
+import AdminStorefront from "@/pages/admin/storefront";
+import AdminBuilder from "@/pages/admin/builder/index";
+import PageBuilder from "@/pages/admin/page-builder";
 import { Moon, Sun, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -26,8 +35,9 @@ import { useToast } from "@/hooks/use-toast";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const [, setLocation] = useLocation();
-  const { data: authData, isLoading } = useQuery({
+  const { data: authData, isLoading } = useQuery<{ user: any }>({
     queryKey: ["/api/auth/me"],
+    queryFn: () => apiRequest("GET", "/api/auth/me"),
     retry: false,
   });
 
@@ -56,6 +66,7 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { language, setLanguage } = useLanguage();
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") as "light" | "dark";
@@ -113,6 +124,14 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <div className="flex items-center gap-2">
               <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setLanguage(language === "en" ? "bn" : "en")}
+                className="font-medium"
+              >
+                {language === "en" ? "EN" : "BN"}
+              </Button>
+              <Button
                 size="icon"
                 variant="ghost"
                 onClick={toggleTheme}
@@ -141,9 +160,11 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/products" component={ProductsPage} />
       <Route path="/checkout" component={Checkout} />
       <Route path="/login" component={Login} />
-      
+      <Route path="/collections/:slug" component={CollectionPage} />
+
       <Route path="/admin">
         {() => (
           <ProtectedRoute>
@@ -153,7 +174,7 @@ function Router() {
           </ProtectedRoute>
         )}
       </Route>
-      
+
       <Route path="/admin/products">
         {() => (
           <ProtectedRoute>
@@ -163,7 +184,7 @@ function Router() {
           </ProtectedRoute>
         )}
       </Route>
-      
+
       <Route path="/admin/orders">
         {() => (
           <ProtectedRoute>
@@ -173,7 +194,7 @@ function Router() {
           </ProtectedRoute>
         )}
       </Route>
-      
+
       <Route path="/admin/pos">
         {() => (
           <ProtectedRoute>
@@ -183,7 +204,7 @@ function Router() {
           </ProtectedRoute>
         )}
       </Route>
-      
+
       <Route path="/admin/invoices">
         {() => (
           <ProtectedRoute>
@@ -193,19 +214,79 @@ function Router() {
           </ProtectedRoute>
         )}
       </Route>
-      
+
       <Route path="/admin/invoices/:id/print" component={InvoicePrint} />
-      
+
       <Route path="/admin/users">
         {() => (
           <ProtectedRoute>
             <AdminLayout>
-              <AdminUsers />
+              <div className="p-8">
+                <AdminUsers />
+              </div>
             </AdminLayout>
           </ProtectedRoute>
         )}
       </Route>
-      
+
+      <Route path="/admin/collections">
+        {() => (
+          <ProtectedRoute>
+            <AdminLayout>
+              <div className="p-8">
+                <AdminCollections />
+              </div>
+            </AdminLayout>
+          </ProtectedRoute>
+        )}
+      </Route>
+
+      <Route path="/admin/promotions">
+        {() => (
+          <ProtectedRoute>
+            <AdminLayout>
+              <div className="p-8">
+                <AdminPromotions />
+              </div>
+            </AdminLayout>
+          </ProtectedRoute>
+        )}
+      </Route>
+
+      <Route path="/admin/storefront">
+        {() => (
+          <ProtectedRoute>
+            <AdminLayout>
+              <div className="p-8">
+                <AdminStorefront />
+              </div>
+            </AdminLayout>
+          </ProtectedRoute>
+        )}
+      </Route>
+
+      <Route path="/admin/page-builder">
+        {() => (
+          <ProtectedRoute>
+            <AdminLayout>
+              <div className="p-8">
+                <PageBuilder />
+              </div>
+            </AdminLayout>
+          </ProtectedRoute>
+        )}
+      </Route>
+
+      <Route path="/admin/builder">
+        {() => (
+          <ProtectedRoute>
+            <AdminLayout>
+              <AdminBuilder />
+            </AdminLayout>
+          </ProtectedRoute>
+        )}
+      </Route>
+
       <Route path="/admin/settings">
         {() => (
           <ProtectedRoute>
@@ -215,7 +296,7 @@ function Router() {
           </ProtectedRoute>
         )}
       </Route>
-      
+
       <Route component={NotFound} />
     </Switch>
   );
@@ -226,8 +307,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <LanguageProvider>
-          <Toaster />
-          <Router />
+          <CartProvider>
+            <FlyToCartProvider>
+              <Toaster />
+              <Router />
+            </FlyToCartProvider>
+          </CartProvider>
         </LanguageProvider>
       </TooltipProvider>
     </QueryClientProvider>

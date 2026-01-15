@@ -48,8 +48,7 @@ export default function Orders() {
 
   const viewOrderDetails = async (order: Order) => {
     setSelectedOrder(order);
-    const response = await apiRequest("GET", `/api/orders/${order.id}/items`);
-    const items = await response.json() as OrderItem[];
+    const items = await apiRequest("GET", `/api/orders/${order.id}/items`) as OrderItem[];
     setSelectedOrderItems(items);
   };
 

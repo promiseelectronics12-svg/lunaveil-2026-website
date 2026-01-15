@@ -6,6 +6,9 @@ import {
   FileText,
   Settings,
   Users,
+  FolderTree,
+  LayoutTemplate,
+  Tag,
 } from "lucide-react";
 import {
   Sidebar,
@@ -20,7 +23,10 @@ import {
 import { useLanguage } from "@/lib/language-context";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+
 import logoImage from "@assets/generated_images/LUNAVEIL_brand_logo_design_9b211d42.png";
+import type { CompanySettings } from "@shared/schema";
 
 const menuItems = [
   {
@@ -37,6 +43,26 @@ const menuItems = [
     titleKey: "admin.orders",
     url: "/admin/orders",
     icon: ShoppingCart,
+  },
+  {
+    titleKey: "admin.collections",
+    url: "/admin/collections",
+    icon: FolderTree,
+  },
+  {
+    title: "Promotions",
+    url: "/admin/promotions",
+    icon: Tag,
+  },
+  {
+    titleKey: "admin.storefront",
+    url: "/admin/builder",
+    icon: LayoutTemplate,
+  },
+  {
+    title: "Page Builder",
+    url: "/admin/page-builder",
+    icon: LayoutTemplate,
   },
   {
     titleKey: "admin.pos",
@@ -64,8 +90,9 @@ export function AppSidebar() {
   const { t } = useLanguage();
   const [location] = useLocation();
 
-  const { data: settings } = useQuery({
+  const { data: settings } = useQuery<CompanySettings>({
     queryKey: ["/api/settings"],
+    queryFn: () => apiRequest("GET", "/api/settings"),
   });
 
   const currentLogo = settings?.logoUrl || logoImage;
@@ -100,7 +127,7 @@ export function AppSidebar() {
                     >
                       <a href={item.url}>
                         <item.icon />
-                        <span>{t(item.titleKey)}</span>
+                        <span>{item.titleKey ? t(item.titleKey) : item.title}</span>
                       </a>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

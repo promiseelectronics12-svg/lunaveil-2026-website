@@ -1,9 +1,13 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+
 import passport from "./auth";
 import bcrypt from "bcrypt";
-import {
+import { z } from "zod";
+
+import { storage, schema } from "./provider";
+
+const {
   insertProductSchema,
   insertOrderSchema,
   insertOrderItemSchema,
@@ -11,13 +15,17 @@ import {
   insertInvoiceItemSchema,
   insertCompanySettingsSchema,
   insertAdminUserSchema,
-} from "@shared/schema";
-import { z } from "zod";
+  insertCollectionSchema,
+  insertBannerSchema,
+
+  insertStorefrontSectionSchema,
+  insertPromotionSchema,
+} = schema;
 
 // Normalize Google email to prevent alias-based attacks
 function normalizeGoogleEmail(email: string): string {
   const lowercased = email.toLowerCase().trim();
-  
+
   // For Gmail addresses, remove dots and plus aliases
   if (lowercased.endsWith("@gmail.com") || lowercased.endsWith("@googlemail.com")) {
     const [localPart, domain] = lowercased.split("@");
@@ -25,7 +33,7 @@ function normalizeGoogleEmail(email: string): string {
     const normalized = localPart.replace(/\./g, "").split("+")[0];
     return `${normalized}@gmail.com`;
   }
-  
+
   return lowercased;
 }
 
@@ -86,8 +94,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (!user) {
         // Distinguish between authorization failure and other issues
-        const errorType = info?.message?.includes("not authorized") 
-          ? "google_not_authorized" 
+        const errorType = info?.message?.includes("not authorized")
+          ? "google_not_authorized"
           : "oauth_failed";
         return res.redirect(`/login?error=${errorType}`);
       }
@@ -105,7 +113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/link-google", requireAuth, async (req, res) => {
     try {
       const { googleEmail, password } = req.body;
-      
+
       if (!googleEmail || typeof googleEmail !== "string") {
         return res.status(400).json({ error: "Google email is required" });
       }
@@ -194,7 +202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.user && req.user.id === req.params.id) {
         return res.status(400).json({ error: "Cannot delete your own account" });
       }
-      
+
       const deleted = await storage.deleteAdminUser(req.params.id);
       if (!deleted) {
         return res.status(404).json({ error: "User not found" });
@@ -206,11 +214,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Products
-  app.get("/api/products", async (_req, res) => {
+  app.get("/api/products", async (req, res) => {
     try {
-      const products = await storage.getProducts();
+      const isHot = req.query.isHot === 'true';
+      const products = await storage.getProducts(isHot ? true : undefined);
       res.json(products);
     } catch (error) {
+      console.error("Error in GET /api/products:", error);
       res.status(500).json({ error: "Failed to fetch products" });
     }
   });
@@ -234,18 +244,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         discountedPrice: req.body.discountedPrice === "" ? undefined : req.body.discountedPrice,
       };
-      
+
       // Validate that discounted price is less than or equal to regular price
       if (body.discountedPrice !== undefined && body.discountedPrice !== null) {
         const regularPrice = parseFloat(body.price);
         const discountedPrice = parseFloat(body.discountedPrice);
         if (discountedPrice > regularPrice) {
-          return res.status(400).json({ 
-            error: "Discounted price cannot be greater than regular price" 
+          return res.status(400).json({
+            error: "Discounted price cannot be greater than regular price"
           });
         }
       }
-      
+
       const data = insertProductSchema.parse(body);
       const product = await storage.createProduct(data);
       res.status(201).json(product);
@@ -264,7 +274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         discountedPrice: req.body.discountedPrice === "" ? undefined : req.body.discountedPrice,
       };
-      
+
       // Validate that discounted price is less than or equal to regular price
       if (body.discountedPrice !== undefined && body.discountedPrice !== null) {
         // Fetch existing product to get current price if not provided in request
@@ -272,20 +282,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!existingProduct) {
           return res.status(404).json({ error: "Product not found" });
         }
-        
+
         // Use the price from the request if provided, otherwise use the existing price
-        const regularPrice = body.price !== undefined 
-          ? parseFloat(body.price) 
+        const regularPrice = body.price !== undefined
+          ? parseFloat(body.price)
           : parseFloat(existingProduct.price.toString());
         const discountedPrice = parseFloat(body.discountedPrice);
-        
+
         if (discountedPrice > regularPrice) {
-          return res.status(400).json({ 
-            error: "Discounted price cannot be greater than regular price" 
+          return res.status(400).json({
+            error: "Discounted price cannot be greater than regular price"
           });
         }
       }
-      
+
       const data = insertProductSchema.partial().parse(body);
       const product = await storage.updateProduct(req.params.id, data);
       if (!product) {
@@ -309,6 +319,285 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete product" });
+    }
+  });
+
+  // Collections
+  app.get("/api/collections", async (_req, res) => {
+    try {
+      const collections = await storage.getCollections();
+      res.json(collections);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch collections" });
+    }
+  });
+
+  app.get("/api/collections/:id", async (req, res) => {
+    try {
+      const collection = await storage.getCollection(req.params.id);
+      if (!collection) {
+        return res.status(404).json({ error: "Collection not found" });
+      }
+      res.json(collection);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch collection" });
+    }
+  });
+
+  app.get("/api/collections/slug/:slug", async (req, res) => {
+    try {
+      const collection = await storage.getCollectionBySlug(req.params.slug);
+      if (!collection) {
+        return res.status(404).json({ error: "Collection not found" });
+      }
+      res.json(collection);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch collection" });
+    }
+  });
+
+  app.post("/api/collections", async (req, res) => {
+    try {
+      const data = insertCollectionSchema.parse(req.body);
+      const collection = await storage.createCollection(data);
+      res.status(201).json(collection);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create collection" });
+    }
+  });
+
+  app.patch("/api/collections/:id", async (req, res) => {
+    try {
+      const data = insertCollectionSchema.partial().parse(req.body);
+      const collection = await storage.updateCollection(req.params.id, data);
+      if (!collection) {
+        return res.status(404).json({ error: "Collection not found" });
+      }
+      res.json(collection);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update collection" });
+    }
+  });
+
+  app.delete("/api/collections/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteCollection(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Collection not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete collection" });
+    }
+  });
+
+  // Banners
+  app.get("/api/banners", async (_req, res) => {
+    try {
+      const banners = await storage.getBanners();
+      res.json(banners);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch banners" });
+    }
+  });
+
+  app.get("/api/banners/:id", async (req, res) => {
+    try {
+      const banner = await storage.getBanner(req.params.id);
+      if (!banner) {
+        return res.status(404).json({ error: "Banner not found" });
+      }
+      res.json(banner);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch banner" });
+    }
+  });
+
+  app.post("/api/banners", async (req, res) => {
+    try {
+      const data = insertBannerSchema.parse(req.body);
+      const banner = await storage.createBanner(data);
+      res.status(201).json(banner);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create banner" });
+    }
+  });
+
+  app.patch("/api/banners/:id", async (req, res) => {
+    try {
+      const data = insertBannerSchema.partial().parse(req.body);
+      const banner = await storage.updateBanner(req.params.id, data);
+      if (!banner) {
+        return res.status(404).json({ error: "Banner not found" });
+      }
+      res.json(banner);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update banner" });
+    }
+  });
+
+  app.delete("/api/banners/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteBanner(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Banner not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete banner" });
+    }
+  });
+
+  // Storefront Sections
+  app.get("/api/storefront-sections", async (_req, res) => {
+    try {
+      const sections = await storage.getStorefrontSections();
+      res.json(sections);
+    } catch (error) {
+      console.error("Error fetching storefront sections:", error);
+      res.status(500).json({ error: "Failed to fetch storefront sections" });
+    }
+  });
+
+  app.get("/api/storefront-sections/:id", async (req, res) => {
+    try {
+      const section = await storage.getStorefrontSection(req.params.id);
+      if (!section) {
+        return res.status(404).json({ error: "Section not found" });
+      }
+      res.json(section);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch section" });
+    }
+  });
+
+  app.post("/api/storefront-sections", async (req, res) => {
+    try {
+      console.log('Creating storefront section with body:', JSON.stringify(req.body, null, 2));
+      const data = insertStorefrontSectionSchema.parse(req.body);
+      console.log('Parsed data:', JSON.stringify(data, null, 2));
+      const section = await storage.createStorefrontSection(data);
+      console.log('Created section:', JSON.stringify(section, null, 2));
+      res.status(201).json(section);
+    } catch (error) {
+      console.error('Error creating storefront section:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create section" });
+    }
+  });
+
+  app.patch("/api/storefront-sections/:id", async (req, res) => {
+    try {
+      const data = insertStorefrontSectionSchema.partial().parse(req.body);
+      const section = await storage.updateStorefrontSection(req.params.id, data);
+      if (!section) {
+        return res.status(404).json({ error: "Section not found" });
+      }
+      res.json(section);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update section" });
+    }
+  });
+
+  app.delete("/api/storefront-sections/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteStorefrontSection(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Section not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete section" });
+    }
+  });
+
+  // Facebook Product Feed
+  app.get("/api/facebook-catalog", async (req, res) => {
+    try {
+      const products = await storage.getProducts();
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+      let xml = '<?xml version="1.0"?>\n';
+      xml += '<rss xmlns:g="http://base.google.com/ns/1.0" version="2.0">\n';
+      xml += '<channel>\n';
+      xml += '<title>LUNAVEIL Product Feed</title>\n';
+      xml += `<link>${baseUrl}</link>\n`;
+      xml += '<description>LUNAVEIL Product Catalog</description>\n';
+
+      for (const product of products) {
+        const imageUrl = product.images && product.images.length > 0
+          ? (product.images[0].startsWith('http') ? product.images[0] : `${baseUrl}${product.images[0]}`)
+          : '';
+
+        // Calculate sale price
+        let salePrice = null;
+        if (product.isHot && product.hotPrice) {
+          salePrice = parseFloat(product.hotPrice);
+        } else if (product.discountedPrice) {
+          salePrice = parseFloat(product.discountedPrice);
+        }
+
+        xml += '<item>\n';
+        xml += `<g:id>${product.id}</g:id>\n`;
+        xml += `<g:title><![CDATA[${product.nameEn}]]></g:title>\n`;
+        xml += `<g:description><![CDATA[${product.descriptionEn}]]></g:description>\n`;
+        xml += `<g:link>${baseUrl}/product/${product.id}</g:link>\n`;
+        xml += `<g:image_link>${imageUrl}</g:image_link>\n`;
+
+        // Additional images
+        if (product.images && product.images.length > 1) {
+          for (let i = 1; i < product.images.length; i++) {
+            const addImg = product.images[i].startsWith('http') ? product.images[i] : `${baseUrl}${product.images[i]}`;
+            xml += `<g:additional_image_link>${addImg}</g:additional_image_link>\n`;
+          }
+        }
+
+        xml += `<g:brand>LUNAVEIL</g:brand>\n`;
+        xml += `<g:condition>new</g:condition>\n`;
+        xml += `<g:availability>${product.stock > 0 ? 'in stock' : 'out of stock'}</g:availability>\n`;
+        xml += `<g:price>${parseFloat(product.price).toFixed(2)} BDT</g:price>\n`;
+
+        if (salePrice) {
+          xml += `<g:sale_price>${salePrice.toFixed(2)} BDT</g:sale_price>\n`;
+        }
+
+        xml += `<g:product_type><![CDATA[${product.category}]]></g:product_type>\n`;
+        xml += `<g:google_product_category>1604</g:google_product_category>\n`;
+
+        // Custom labels for ad targeting
+        if (product.isHot) {
+          xml += `<g:custom_label_0>Hot Deal</g:custom_label_0>\n`;
+        }
+        xml += `<g:custom_label_1>${product.category}</g:custom_label_1>\n`;
+
+        xml += '</item>\n';
+      }
+
+      xml += '</channel>\n';
+      xml += '</rss>';
+
+      res.header('Content-Type', 'application/xml');
+      res.send(xml);
+    } catch (error) {
+      console.error("Error generating Facebook catalog:", error);
+      res.status(500).send("Error generating catalog");
     }
   });
 
@@ -362,6 +651,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof Error && error.message.includes("Insufficient stock")) {
         return res.status(400).json({ error: error.message });
       }
+      console.error("Error creating order:", error);
       res.status(500).json({ error: "Failed to create order" });
     }
   });
@@ -450,13 +740,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.status(201).json(invoice);
     } catch (error) {
+      console.error("[Invoice Create] Error:", error);
       if (error instanceof z.ZodError) {
+        console.error("[Invoice Create] Validation errors:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ error: error.errors });
       }
       if (error instanceof Error && error.message.includes("Insufficient stock")) {
         return res.status(400).json({ error: error.message });
       }
       res.status(500).json({ error: "Failed to create invoice" });
+    }
+  });
+
+  // Return an invoice (restock products)
+  app.post("/api/invoices/:id/return", async (req, res) => {
+    try {
+      const invoice = await storage.returnInvoice(req.params.id);
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+      res.json(invoice);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("already returned")) {
+        return res.status(400).json({ error: error.message });
+      }
+      res.status(500).json({ error: "Failed to return invoice" });
     }
   });
 
@@ -480,6 +788,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: error.errors });
       }
       res.status(500).json({ error: "Failed to update settings" });
+    }
+  });
+
+  // Promotions
+  app.get("/api/promotions", async (_req, res) => {
+    try {
+      const promotions = await storage.getPromotions();
+      res.json(promotions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch promotions" });
+    }
+  });
+
+  app.get("/api/promotions/active", async (_req, res) => {
+    try {
+      const promotions = await storage.getActivePromotions();
+      res.json(promotions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch active promotions" });
+    }
+  });
+
+  app.get("/api/promotions/:id", async (req, res) => {
+    try {
+      const promotion = await storage.getPromotion(req.params.id);
+      if (!promotion) {
+        return res.status(404).json({ error: "Promotion not found" });
+      }
+      res.json(promotion);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch promotion" });
+    }
+  });
+
+  app.post("/api/promotions", async (req, res) => {
+    try {
+      const data = insertPromotionSchema.parse(req.body);
+      const promotion = await storage.createPromotion(data);
+      res.status(201).json(promotion);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create promotion" });
+    }
+  });
+
+  app.patch("/api/promotions/:id", async (req, res) => {
+    try {
+      const data = insertPromotionSchema.partial().parse(req.body);
+      const promotion = await storage.updatePromotion(req.params.id, data);
+      if (!promotion) {
+        return res.status(404).json({ error: "Promotion not found" });
+      }
+      res.json(promotion);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update promotion" });
+    }
+  });
+
+  app.delete("/api/promotions/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deletePromotion(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Promotion not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete promotion" });
     }
   });
 

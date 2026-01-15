@@ -1,159 +1,57 @@
 import { useState } from "react";
 import { CustomerHeader } from "@/components/customer-header";
 import { CustomerFooter } from "@/components/customer-footer";
-import { HeroSection } from "@/components/hero-section";
-import { ProductCard } from "@/components/product-card";
-import { ProductDetailDialog } from "@/components/product-detail-dialog";
-import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/lib/language-context";
-import { Search, X, Minus, Plus, ShoppingBag } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { Skeleton } from "@/components/ui/skeleton";
-import type { Product } from "@shared/schema";
+import { ShoppingBag, Minus, Plus, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
-
-interface CartItem extends Product {
-  quantity: number;
-}
+import { MobileNav } from "@/components/mobile-nav";
+import { MobileMenu } from "@/components/mobile-menu";
+import { useCart } from "@/lib/cart-context";
+import { StorefrontRenderer } from "@/components/storefront/renderer";
 
 export default function Home() {
   const { language, t } = useLanguage();
   const [, setLocation] = useLocation();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [cartOpen, setCartOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const { data: products = [], isLoading } = useQuery<Product[]>({
-    queryKey: ["/api/products"],
-  });
-
-  const filteredProducts = products.filter((product) => {
-    const name = language === "bn" ? product.nameBn : product.nameEn;
-    const description = language === "bn" ? product.descriptionBn : product.descriptionEn;
-    const query = searchQuery.toLowerCase();
-    return name.toLowerCase().includes(query) || description.toLowerCase().includes(query);
-  });
-
-  const addToCart = (product: Product) => {
-    setCart((prev) => {
-      const existing = prev.find((item) => item.id === product.id);
-      if (existing) {
-        return prev.map((item) =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-        );
-      }
-      return [...prev, { ...product, quantity: 1 }];
-    });
-    setCartOpen(true);
-  };
-
-  const updateQuantity = (productId: string, change: number) => {
-    setCart((prev) =>
-      prev
-        .map((item) =>
-          item.id === productId ? { ...item, quantity: item.quantity + change } : item
-        )
-        .filter((item) => item.quantity > 0)
-    );
-  };
-
-  const removeFromCart = (productId: string) => {
-    setCart((prev) => prev.filter((item) => item.id !== productId));
-  };
-
-  const cartTotal = cart.reduce(
-    (sum, item) => {
-      const price = item.discountedPrice 
-        ? parseFloat(item.discountedPrice.toString()) 
-        : parseFloat(item.price.toString());
-      return sum + price * item.quantity;
-    },
-    0
-  );
+  const {
+    cart,
+    removeFromCart,
+    updateQuantity,
+    cartTotal,
+    cartOpen,
+    setCartOpen,
+    cartCount
+  } = useCart();
 
   const proceedToCheckout = () => {
-    localStorage.setItem("cart", JSON.stringify(cart));
     setLocation("/checkout");
   };
 
-  const handleViewDetails = (product: Product) => {
-    setSelectedProduct(product);
-    setDetailDialogOpen(true);
-  };
+
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <CustomerHeader cartItemCount={cart.length} onCartClick={() => setCartOpen(true)} />
+    <div className="min-h-screen bg-background flex flex-col pb-16 md:pb-0">
+      <CustomerHeader cartItemCount={cartCount} onCartClick={() => setCartOpen(true)} />
 
       <main className="flex-1">
-        <HeroSection />
-
-        <section id="products" className="container mx-auto px-4 py-16">
-          <div className="mb-12">
-            <h2 className="text-4xl font-serif font-bold text-center mb-4 text-foreground">
-              {t("nav.products")}
-            </h2>
-            <div className="max-w-md mx-auto relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder={t("common.search")}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-                data-testid="input-product-search"
-              />
-            </div>
-          </div>
-
-          {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <Card key={i} className="overflow-hidden">
-                  <Skeleton className="aspect-square w-full" />
-                  <div className="p-4 space-y-3">
-                    <Skeleton className="h-5 w-3/4" />
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-6 w-1/3" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                </Card>
-              ))}
-            </div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="text-center py-16">
-              <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <p className="text-lg text-muted-foreground">
-                {searchQuery ? "No products found" : "No products available"}
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {filteredProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onAddToCart={addToCart}
-                  onViewDetails={handleViewDetails}
-                />
-              ))}
-            </div>
-          )}
-        </section>
+        <StorefrontRenderer />
       </main>
 
       <CustomerFooter />
 
-      <ProductDetailDialog
-        product={selectedProduct}
-        open={detailDialogOpen}
-        onOpenChange={setDetailDialogOpen}
-        onAddToCart={addToCart}
+      <MobileNav
+        cartItemCount={cartCount}
+        onCartClick={() => setCartOpen(true)}
+        onMenuClick={() => setMobileMenuOpen(true)}
+      />
+
+      <MobileMenu
+        open={mobileMenuOpen}
+        onOpenChange={setMobileMenuOpen}
       />
 
       <Sheet open={cartOpen} onOpenChange={setCartOpen}>

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -37,6 +37,8 @@ export const products = pgTable("products", {
   stock: integer("stock").notNull().default(0),
   category: text("category").notNull(),
   images: text("images").array().notNull().default(sql`ARRAY[]::text[]`),
+  isHot: boolean("is_hot").default(false),
+  hotPrice: decimal("hot_price", { precision: 10, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -111,6 +113,8 @@ export const invoices = pgTable("invoices", {
   status: text("status").notNull().default("paid"), // paid, pending, cancelled
   notes: text("notes"),
   isPOS: boolean("is_pos").notNull().default(false),
+  isReturned: boolean("is_returned").notNull().default(false),
+  returnedAt: timestamp("returned_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -161,3 +165,108 @@ export const insertAdminUserSchema = createInsertSchema(adminUsers).omit({
 
 export type InsertAdminUser = z.infer<typeof insertAdminUserSchema>;
 export type AdminUser = typeof adminUsers.$inferSelect;
+
+// Collections
+export const collections = pgTable("collections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  description: text("description"),
+  image: text("image"),
+  parentId: varchar("parent_id"), // For hierarchy
+  type: text("type").default("category"), // 'category' or 'promo'
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertCollectionSchema = createInsertSchema(collections).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertCollection = z.infer<typeof insertCollectionSchema>;
+export type Collection = typeof collections.$inferSelect;
+
+// Storefront Sections
+export const storefrontSections = pgTable("storefront_sections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  type: text("type").notNull(), // 'hero', 'product_grid', 'banner', 'marquee', etc.
+  order: integer("order").notNull().default(0),
+  content: jsonb("content").notNull(), // Flexible JSON for section data
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertStorefrontSectionSchema = createInsertSchema(storefrontSections).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertStorefrontSection = z.infer<typeof insertStorefrontSectionSchema>;
+export type StorefrontSection = typeof storefrontSections.$inferSelect;
+
+// Product Collections (Junction)
+export const productCollections = pgTable("product_collections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull(),
+  collectionId: varchar("collection_id").notNull(),
+});
+
+export const insertProductCollectionSchema = createInsertSchema(productCollections).omit({
+  id: true,
+});
+
+export type InsertProductCollection = z.infer<typeof insertProductCollectionSchema>;
+export type ProductCollection = typeof productCollections.$inferSelect;
+
+// Banners (Storefront)
+export const banners = pgTable("banners", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  subtitle: text("subtitle"),
+  image: text("image").notNull(),
+  link: text("link"),
+  position: text("position").notNull(), // 'bento-1', 'bento-2', 'bento-3', 'bento-4'
+  order: integer("order").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertBannerSchema = createInsertSchema(banners).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertBanner = z.infer<typeof insertBannerSchema>;
+export type Banner = typeof banners.$inferSelect;
+
+// Promotions
+export const promotions = pgTable("promotions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // e.g., "Free Delivery > 2000"
+  description: text("description"), // Display text for banner/checkout
+  type: text("type").notNull(), // 'free_delivery', 'percentage_discount', 'fixed_discount'
+  value: decimal("value", { precision: 10, scale: 2 }).default("0"), // Percentage amount or fixed amount
+  minOrderValue: decimal("min_order_value", { precision: 10, scale: 2 }).default("0"),
+  maxDiscount: decimal("max_discount", { precision: 10, scale: 2 }), // Cap for percentage discounts
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPromotionSchema = createInsertSchema(promotions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPromotion = z.infer<typeof insertPromotionSchema>;
+export type Promotion = typeof promotions.$inferSelect;

@@ -13,6 +13,14 @@ import type {
   InsertCompanySettings,
   AdminUser,
   InsertAdminUser,
+  Collection,
+  InsertCollection,
+  Banner,
+  InsertBanner,
+  StorefrontSection,
+  InsertStorefrontSection,
+  Promotion,
+  InsertPromotion,
 } from "@shared/schema";
 import {
   products,
@@ -22,59 +30,24 @@ import {
   invoiceItems,
   companySettings,
   adminUsers,
+  collections,
+  productCollections,
+  banners,
+  storefrontSections,
+  promotions,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
-export interface IStorage {
-  // Products
-  getProducts(): Promise<Product[]>;
-  getProduct(id: string): Promise<Product | undefined>;
-  createProduct(product: InsertProduct): Promise<Product>;
-  updateProduct(id: string, product: Partial<InsertProduct>): Promise<Product | undefined>;
-  deleteProduct(id: string): Promise<boolean>;
-  reduceStock(productId: string, quantity: number): Promise<boolean>;
-
-  // Orders
-  getOrders(): Promise<Order[]>;
-  getOrder(id: string): Promise<Order | undefined>;
-  createOrder(order: InsertOrder): Promise<Order>;
-  updateOrder(id: string, order: Partial<InsertOrder>): Promise<Order | undefined>;
-  createOrderWithItems(order: InsertOrder, items: Omit<InsertOrderItem, "orderId">[], reduceStock?: boolean): Promise<Order>;
-
-  // Order Items
-  getOrderItems(orderId: string): Promise<OrderItem[]>;
-  createOrderItem(item: InsertOrderItem): Promise<OrderItem>;
-
-  // Invoices
-  getInvoices(): Promise<Invoice[]>;
-  getInvoice(id: string): Promise<Invoice | undefined>;
-  createInvoice(invoice: InsertInvoice): Promise<Invoice>;
-  getNextInvoiceNumber(): Promise<string>;
-  createInvoiceWithItems(invoice: InsertInvoice, items: Omit<InsertInvoiceItem, "invoiceId">[], reduceStock: boolean): Promise<Invoice>;
-
-  // Invoice Items
-  getInvoiceItems(invoiceId: string): Promise<InvoiceItem[]>;
-  createInvoiceItem(item: InsertInvoiceItem): Promise<InvoiceItem>;
-
-  // Settings
-  getSettings(): Promise<CompanySettings>;
-  updateSettings(settings: InsertCompanySettings): Promise<CompanySettings>;
-
-  // Admin Users
-  getAdminUsers(): Promise<Omit<AdminUser, "password">[]>;
-  getAdminUser(id: string): Promise<AdminUser | undefined>;
-  getAdminUserByUsername(username: string): Promise<AdminUser | undefined>;
-  getAdminUserByGoogleEmail(googleEmail: string): Promise<AdminUser | undefined>;
-  createAdminUser(user: InsertAdminUser): Promise<Omit<AdminUser, "password">>;
-  deleteAdminUser(id: string): Promise<boolean>;
-  linkGoogleEmail(userId: string, googleEmail: string): Promise<Omit<AdminUser, "password"> | undefined>;
-}
+import type { IStorage } from "./interface";
 
 export class DatabaseStorage implements IStorage {
   // Products
-  async getProducts(): Promise<Product[]> {
+  async getProducts(isHot?: boolean): Promise<Product[]> {
+    if (isHot !== undefined) {
+      return await db.select().from(products).where(eq(products.isHot, isHot)).orderBy(desc(products.createdAt));
+    }
     return await db.select().from(products).orderBy(desc(products.createdAt));
   }
 
@@ -148,9 +121,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createOrderWithItems(order: InsertOrder, items: Omit<InsertOrderItem, "orderId">[], reduceStock: boolean = false): Promise<Order> {
-    return await db.transaction(async (tx) => {
+    return await db.transaction(async (tx: any) => {
       const [newOrder] = await tx.insert(orders).values(order).returning();
-      
+
       if (items.length > 0) {
         const orderItemsData = items.map(item => ({
           ...item,
@@ -166,7 +139,7 @@ export class DatabaseStorage implements IStorage {
               if (!product || product.stock < item.quantity) {
                 throw new Error(`Insufficient stock for product: ${item.productNameEn}`);
               }
-              
+
               await tx
                 .update(products)
                 .set({ stock: product.stock - item.quantity, updatedAt: new Date() })
@@ -175,14 +148,18 @@ export class DatabaseStorage implements IStorage {
           }
         }
       }
-      
+
       return newOrder;
     });
   }
 
   // Invoices
   async getInvoices(): Promise<Invoice[]> {
-    return await db.select().from(invoices).orderBy(desc(invoices.createdAt));
+    const results = await db.select().from(invoices).orderBy(desc(invoices.createdAt));
+    return results.map((invoice: typeof invoices.$inferSelect) => ({
+      ...invoice,
+      date: invoice.date || new Date(), // Ensure date is not null
+    })) as Invoice[];
   }
 
   async getInvoice(id: string): Promise<Invoice | undefined> {
@@ -216,16 +193,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createInvoiceWithItems(invoice: InsertInvoice, items: Omit<InsertInvoiceItem, "invoiceId">[], reduceStock: boolean = false): Promise<Invoice> {
-    return await db.transaction(async (tx) => {
+    return await db.transaction(async (tx: any) => {
       const [newInvoice] = await tx.insert(invoices).values(invoice).returning();
-      
+
       if (items.length > 0) {
         const invoiceItemsData = items.map(item => ({
           ...item,
           invoiceId: newInvoice.id,
         }));
         await tx.insert(invoiceItems).values(invoiceItemsData);
-        
+
         // Reduce stock if requested (for POS invoices)
         if (reduceStock) {
           for (const item of items) {
@@ -234,7 +211,7 @@ export class DatabaseStorage implements IStorage {
               if (!product || product.stock < item.quantity) {
                 throw new Error(`Insufficient stock for product: ${item.productNameEn}`);
               }
-              
+
               await tx
                 .update(products)
                 .set({ stock: product.stock - item.quantity, updatedAt: new Date() })
@@ -243,8 +220,46 @@ export class DatabaseStorage implements IStorage {
           }
         }
       }
-      
+
       return newInvoice;
+    });
+  }
+
+  async returnInvoice(id: string): Promise<Invoice | undefined> {
+    return await db.transaction(async (tx: any) => {
+      // Get the invoice
+      const [invoice] = await tx.select().from(invoices).where(eq(invoices.id, id));
+      if (!invoice) return undefined;
+
+      // Check if already returned
+      if (invoice.isReturned) {
+        throw new Error("Invoice is already returned");
+      }
+
+      // Get the invoice items
+      const items = await tx.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, id));
+
+      // Restock the products
+      for (const item of items) {
+        if (item.productId) {
+          const [product] = await tx.select().from(products).where(eq(products.id, item.productId));
+          if (product) {
+            await tx
+              .update(products)
+              .set({ stock: product.stock + item.quantity, updatedAt: new Date() })
+              .where(eq(products.id, item.productId));
+          }
+        }
+      }
+
+      // Mark invoice as returned
+      const [updatedInvoice] = await tx
+        .update(invoices)
+        .set({ isReturned: true, returnedAt: new Date() })
+        .where(eq(invoices.id, id))
+        .returning();
+
+      return updatedInvoice;
     });
   }
 
@@ -281,7 +296,10 @@ export class DatabaseStorage implements IStorage {
   // Admin Users
   async getAdminUsers(): Promise<Omit<AdminUser, "password">[]> {
     const users = await db.select().from(adminUsers).orderBy(desc(adminUsers.createdAt));
-    return users.map(({ password, ...user }) => user);
+    return users.map((user: AdminUser) => {
+      const { password, ...userWithoutPassword } = user;
+      return userWithoutPassword;
+    });
   }
 
   async getAdminUser(id: string): Promise<AdminUser | undefined> {
@@ -306,7 +324,7 @@ export class DatabaseStorage implements IStorage {
       .insert(adminUsers)
       .values({ ...user, password: hashedPassword })
       .returning();
-    const { password, ...userWithoutPassword } = newUser;
+    const { password, ...userWithoutPassword } = newUser as AdminUser;
     return userWithoutPassword;
   }
 
@@ -321,12 +339,139 @@ export class DatabaseStorage implements IStorage {
       .set({ googleEmail, updatedAt: new Date() })
       .where(eq(adminUsers.id, userId))
       .returning();
-    
+
     if (!updated) return undefined;
-    
+
     const { password, ...userWithoutPassword } = updated;
     return userWithoutPassword;
   }
+
+  // Collections
+  async getCollections(): Promise<Collection[]> {
+    return await db.select().from(collections).orderBy(desc(collections.createdAt));
+  }
+
+  async getCollection(id: string): Promise<Collection | undefined> {
+    const [collection] = await db.select().from(collections).where(eq(collections.id, id));
+    return collection || undefined;
+  }
+
+  async getCollectionBySlug(slug: string): Promise<Collection | undefined> {
+    const [collection] = await db.select().from(collections).where(eq(collections.slug, slug));
+    return collection || undefined;
+  }
+
+  async createCollection(collection: InsertCollection): Promise<Collection> {
+    const [newCollection] = await db.insert(collections).values(collection).returning();
+    return newCollection;
+  }
+
+  async updateCollection(id: string, collection: Partial<InsertCollection>): Promise<Collection | undefined> {
+    const [updated] = await db
+      .update(collections)
+      .set({ ...collection, updatedAt: new Date() })
+      .where(eq(collections.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteCollection(id: string): Promise<boolean> {
+    const result = await db.delete(collections).where(eq(collections.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Banners
+  async getBanners(): Promise<Banner[]> {
+    return await db.select().from(banners).orderBy(desc(banners.createdAt));
+  }
+
+  async getBanner(id: string): Promise<Banner | undefined> {
+    const [banner] = await db.select().from(banners).where(eq(banners.id, id));
+    return banner || undefined;
+  }
+
+  async createBanner(banner: InsertBanner): Promise<Banner> {
+    const [newBanner] = await db.insert(banners).values(banner).returning();
+    return newBanner;
+  }
+
+  async updateBanner(id: string, banner: Partial<InsertBanner>): Promise<Banner | undefined> {
+    const [updated] = await db
+      .update(banners)
+      .set({ ...banner, updatedAt: new Date() })
+      .where(eq(banners.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteBanner(id: string): Promise<boolean> {
+    const result = await db.delete(banners).where(eq(banners.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Storefront Sections
+  async getStorefrontSections(): Promise<StorefrontSection[]> {
+    return await db.select().from(storefrontSections).orderBy(storefrontSections.order);
+  }
+
+  async getStorefrontSection(id: string): Promise<StorefrontSection | undefined> {
+    const [section] = await db.select().from(storefrontSections).where(eq(storefrontSections.id, id));
+    return section || undefined;
+  }
+
+  async createStorefrontSection(section: InsertStorefrontSection): Promise<StorefrontSection> {
+    const [newSection] = await db.insert(storefrontSections).values(section).returning();
+    return newSection;
+  }
+
+  async updateStorefrontSection(id: string, section: Partial<InsertStorefrontSection>): Promise<StorefrontSection | undefined> {
+    const [updated] = await db
+      .update(storefrontSections)
+      .set({ ...section, updatedAt: new Date() })
+      .where(eq(storefrontSections.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteStorefrontSection(id: string): Promise<boolean> {
+    const result = await db.delete(storefrontSections).where(eq(storefrontSections.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Promotions
+  async getPromotions(): Promise<Promotion[]> {
+    return await db.select().from(promotions).orderBy(desc(promotions.createdAt));
+  }
+
+  async getActivePromotions(): Promise<Promotion[]> {
+    return await db.select().from(promotions).where(eq(promotions.isActive, true));
+  }
+
+  async getPromotion(id: string): Promise<Promotion | undefined> {
+    const [promotion] = await db.select().from(promotions).where(eq(promotions.id, id));
+    return promotion || undefined;
+  }
+
+  async createPromotion(promotion: InsertPromotion): Promise<Promotion> {
+    const [newPromotion] = await db.insert(promotions).values(promotion).returning();
+    return newPromotion;
+  }
+
+  async updatePromotion(id: string, promotion: Partial<InsertPromotion>): Promise<Promotion | undefined> {
+    const [updated] = await db
+      .update(promotions)
+      .set({ ...promotion, updatedAt: new Date() })
+      .where(eq(promotions.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deletePromotion(id: string): Promise<boolean> {
+    const result = await db.delete(promotions).where(eq(promotions.id, id)).returning();
+    return result.length > 0;
+  }
 }
 
+// Check if we should use SQLite storage
 export const storage = new DatabaseStorage();
+

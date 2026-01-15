@@ -11,6 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -44,7 +45,9 @@ import { z } from "zod";
 const formSchema = insertProductSchema.extend({
   price: z.string().min(1),
   discountedPrice: z.string().optional(),
+  hotPrice: z.string().optional(),
   stock: z.string().min(1),
+  isHot: z.boolean().default(false),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -70,16 +73,17 @@ export default function Products() {
       descriptionBn: "",
       price: "",
       discountedPrice: "",
+      hotPrice: "",
       stock: "",
       category: "",
       images: [],
+      isHot: false,
     },
   });
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/products", data);
-      return response.json();
+      return await apiRequest("POST", "/api/products", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
@@ -99,8 +103,7 @@ export default function Products() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const response = await apiRequest("PATCH", `/api/products/${id}`, data);
-      return response.json();
+      return await apiRequest("PATCH", `/api/products/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
@@ -136,9 +139,11 @@ export default function Products() {
       descriptionBn: product.descriptionBn,
       price: product.price.toString(),
       discountedPrice: product.discountedPrice?.toString() || "",
+      hotPrice: product.hotPrice?.toString() || "",
       stock: product.stock.toString(),
       category: product.category,
       images: product.images || [],
+      isHot: product.isHot || false,
     });
     setDialogOpen(true);
   };
@@ -206,243 +211,291 @@ export default function Products() {
                 {language === "bn" ? "পণ্য যোগ করুন" : "Add Product"}
               </Button>
             </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingProduct
-                  ? language === "bn"
-                    ? "পণ্য সম্পাদনা"
-                    : "Edit Product"
-                  : language === "bn"
-                  ? "নতুন পণ্য"
-                  : "New Product"}
-              </DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="nameEn"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Name (English)</FormLabel>
-                        <FormControl>
-                          <Input {...field} data-testid="input-name-en" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="nameBn"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Name (Bengali)</FormLabel>
-                        <FormControl>
-                          <Input {...field} data-testid="input-name-bn" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingProduct
+                    ? language === "bn"
+                      ? "পণ্য সম্পাদনা"
+                      : "Edit Product"
+                    : language === "bn"
+                      ? "নতুন পণ্য"
+                      : "New Product"}
+                </DialogTitle>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="nameEn"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Name (English)</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-name-en" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="nameBn"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Name (Bengali)</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-name-bn" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="descriptionEn"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description (English)</FormLabel>
-                        <FormControl>
-                          <Textarea {...field} rows={3} data-testid="input-description-en" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="descriptionBn"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description (Bengali)</FormLabel>
-                        <FormControl>
-                          <Textarea {...field} rows={3} data-testid="input-description-bn" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="descriptionEn"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description (English)</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} rows={3} data-testid="input-description-en" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="descriptionBn"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description (Bengali)</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} rows={3} data-testid="input-description-bn" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="price"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Regular Price (৳)</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.01" {...field} data-testid="input-price" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="discountedPrice"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Discounted Price (৳) - Optional</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.01" {...field} data-testid="input-discounted-price" />
-                        </FormControl>
-                        <FormDescription className="text-xs">
-                          Leave empty if no discount
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="price"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Regular Price (৳)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" {...field} data-testid="input-price" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="discountedPrice"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Discounted Price (৳) - Optional</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" {...field} data-testid="input-discounted-price" />
+                          </FormControl>
+                          <FormDescription className="text-xs">
+                            Leave empty if no discount
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="stock"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Stock</FormLabel>
-                        <FormControl>
-                          <Input type="number" {...field} data-testid="input-stock" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Category</FormLabel>
-                        <FormControl>
-                          <Input {...field} data-testid="input-category" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="stock"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Stock</FormLabel>
+                          <FormControl>
+                            <Input type="number" {...field} data-testid="input-stock" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="category"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Category</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-category" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
-                <FormField
-                  control={form.control}
-                  name="images"
-                  render={({ field }) => {
-                    const handleAddImage = () => {
-                      const url = newImageUrl.trim();
-                      const currentImages = field.value || [];
-                      if (url && !currentImages.includes(url)) {
-                        field.onChange([...currentImages, url]);
-                        setNewImageUrl("");
-                      }
-                    };
-
-                    const handleRemoveImage = (index: number) => {
-                      const currentImages = field.value || [];
-                      const newImages = currentImages.filter((_, i) => i !== index);
-                      field.onChange(newImages);
-                    };
-
-                    return (
-                      <FormItem>
-                        <FormLabel>
-                          {language === "bn" ? "পণ্য ছবি" : "Product Images"}
-                        </FormLabel>
-                        <FormControl>
-                          <div className="space-y-3">
-                            <div className="flex gap-2">
-                              <Input
-                                placeholder={language === "bn" ? "ছবির URL প্রবেশ করান" : "Enter image URL"}
-                                value={newImageUrl}
-                                onChange={(e) => setNewImageUrl(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    handleAddImage();
-                                  }
-                                }}
-                                data-testid="input-image-url"
-                              />
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={handleAddImage}
-                                data-testid="button-add-image"
-                              >
-                                <ImagePlus className="h-4 w-4" />
-                              </Button>
-                            </div>
-                            
-                            {field.value && field.value.length > 0 && (
-                              <div className="grid grid-cols-3 gap-3" data-testid="image-preview-grid">
-                                {field.value.map((url, index) => (
-                                  <div key={index} className="relative group" data-testid={`image-preview-${index}`}>
-                                    <img
-                                      src={url}
-                                      alt={`Product ${index + 1}`}
-                                      className="w-full h-32 object-cover rounded-md border"
-                                      onError={(e) => {
-                                        e.currentTarget.src = "https://via.placeholder.com/150?text=Invalid+URL";
-                                      }}
-                                      data-testid={`img-product-preview-${index}`}
-                                    />
-                                    <Button
-                                      type="button"
-                                      size="icon"
-                                      variant="destructive"
-                                      className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                      onClick={() => handleRemoveImage(index)}
-                                      data-testid={`button-remove-image-${index}`}
-                                    >
-                                      <X className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            
+                  <div className="border rounded-lg p-4 space-y-4 bg-muted/20">
+                    <FormField
+                      control={form.control}
+                      name="isHot"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-white">
+                          <div className="space-y-0.5">
+                            <FormLabel>Mark as Hot Product</FormLabel>
                             <FormDescription>
-                              {language === "bn" 
-                                ? "ছবির URL প্রবেশ করান এবং Enter চাপুন বা + বাটন ক্লিক করুন। আপনি একাধিক ছবি যোগ করতে পারেন।"
-                                : "Enter image URL and press Enter or click the + button. You can add multiple images."}
+                              Display this product in the "Hot Products" section
                             </FormDescription>
                           </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    );
-                  }}
-                />
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
 
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={createMutation.isPending || updateMutation.isPending}
-                  data-testid="button-submit-product"
-                >
-                  {createMutation.isPending || updateMutation.isPending
-                    ? t("common.loading")
-                    : t("common.save")}
-                </Button>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+                    {form.watch("isHot") && (
+                      <FormField
+                        control={form.control}
+                        name="hotPrice"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Hot Deal Price (৳)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                {...field}
+                                value={field.value || ""}
+                                data-testid="input-hot-price"
+                              />
+                            </FormControl>
+                            <FormDescription className="text-xs">
+                              Overrides regular price when Hot is enabled
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="images"
+                    render={({ field }) => {
+                      const handleAddImage = () => {
+                        const url = newImageUrl.trim();
+                        const currentImages = field.value || [];
+                        if (url && !currentImages.includes(url)) {
+                          field.onChange([...currentImages, url]);
+                          setNewImageUrl("");
+                        }
+                      };
+
+                      const handleRemoveImage = (index: number) => {
+                        const currentImages = field.value || [];
+                        const newImages = currentImages.filter((_, i) => i !== index);
+                        field.onChange(newImages);
+                      };
+
+                      return (
+                        <FormItem>
+                          <FormLabel>
+                            {language === "bn" ? "পণ্য ছবি" : "Product Images"}
+                          </FormLabel>
+                          <FormControl>
+                            <div className="space-y-3">
+                              <div className="flex gap-2">
+                                <Input
+                                  placeholder={language === "bn" ? "ছবির URL প্রবেশ করান" : "Enter image URL"}
+                                  value={newImageUrl}
+                                  onChange={(e) => setNewImageUrl(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      handleAddImage();
+                                    }
+                                  }}
+                                  data-testid="input-image-url"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={handleAddImage}
+                                  data-testid="button-add-image"
+                                >
+                                  <ImagePlus className="h-4 w-4" />
+                                </Button>
+                              </div>
+
+                              {field.value && field.value.length > 0 && (
+                                <div className="grid grid-cols-3 gap-3" data-testid="image-preview-grid">
+                                  {field.value.map((url, index) => (
+                                    <div key={index} className="relative group" data-testid={`image-preview-${index}`}>
+                                      <img
+                                        src={url}
+                                        alt={`Product ${index + 1}`}
+                                        className="w-full h-32 object-cover rounded-md border"
+                                        onError={(e) => {
+                                          e.currentTarget.src = "https://via.placeholder.com/150?text=Invalid+URL";
+                                        }}
+                                        data-testid={`img-product-preview-${index}`}
+                                      />
+                                      <Button
+                                        type="button"
+                                        size="icon"
+                                        variant="destructive"
+                                        className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        onClick={() => handleRemoveImage(index)}
+                                        data-testid={`button-remove-image-${index}`}
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              <FormDescription>
+                                {language === "bn"
+                                  ? "ছবির URL প্রবেশ করান এবং Enter চাপুন বা + বাটন ক্লিক করুন। আপনি একাধিক ছবি যোগ করতে পারেন।"
+                                  : "Enter image URL and press Enter or click the + button. You can add multiple images."}
+                              </FormDescription>
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
+                  />
+
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={createMutation.isPending || updateMutation.isPending}
+                    data-testid="button-submit-product"
+                  >
+                    {createMutation.isPending || updateMutation.isPending
+                      ? t("common.loading")
+                      : t("common.save")}
+                  </Button>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 

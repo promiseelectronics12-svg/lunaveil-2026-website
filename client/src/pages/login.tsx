@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/form";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { LogIn } from "lucide-react";
@@ -37,11 +37,11 @@ export default function Login() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const error = params.get("error");
-    
+
     if (error) {
       let title = "Sign-In Failed";
       let description = "An error occurred during sign-in. Please try again.";
-      
+
       switch (error) {
         case "google_not_authorized":
           title = "Google Account Not Authorized";
@@ -60,13 +60,13 @@ export default function Login() {
           description = "Google authentication failed. Please try again or use traditional login.";
           break;
       }
-      
+
       toast({
         title,
         description,
         variant: "destructive",
       });
-      
+
       // Clean up URL
       window.history.replaceState({}, "", "/login");
     }
@@ -81,9 +81,11 @@ export default function Login() {
   });
 
   const loginMutation = useMutation({
-    mutationFn: async (data: LoginFormData) => 
+    mutationFn: async (data: LoginFormData) =>
       apiRequest("POST", "/api/auth/login", data),
     onSuccess: () => {
+      // Invalidate auth query so ProtectedRoute gets fresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       toast({
         title: "Login successful",
         description: "Welcome to LUNAVEIL Admin Panel",

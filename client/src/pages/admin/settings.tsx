@@ -11,7 +11,7 @@ import { Upload } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertCompanySettingsSchema } from "@shared/schema";
+import { insertCompanySettingsSchema, type CompanySettings } from "@shared/schema";
 import {
   Form,
   FormControl,
@@ -34,8 +34,9 @@ export default function Settings() {
   const { language, t } = useLanguage();
   const { toast } = useToast();
 
-  const { data: settings, isLoading } = useQuery({
+  const { data: settings, isLoading } = useQuery<CompanySettings>({
     queryKey: ["/api/settings"],
+    queryFn: () => apiRequest("GET", "/api/settings"),
   });
 
   const form = useForm<FormData>({
@@ -51,14 +52,14 @@ export default function Settings() {
     },
     values: settings
       ? {
-          companyName: settings.companyName || "LUNAVEIL",
-          companyPhone: settings.companyPhone || "",
-          companyAddress: settings.companyAddress || "",
-          logoUrl: settings.logoUrl || "",
-          invoiceFooterText: settings.invoiceFooterText || "Thank you for shopping with LUNAVEIL",
-          deliveryChargeInsideDhaka: settings.deliveryChargeInsideDhaka?.toString() || "60",
-          deliveryChargeOutsideDhaka: settings.deliveryChargeOutsideDhaka?.toString() || "120",
-        }
+        companyName: settings.companyName || "LUNAVEIL",
+        companyPhone: settings.companyPhone || "",
+        companyAddress: settings.companyAddress || "",
+        logoUrl: settings.logoUrl || "",
+        invoiceFooterText: settings.invoiceFooterText || "Thank you for shopping with LUNAVEIL",
+        deliveryChargeInsideDhaka: settings.deliveryChargeInsideDhaka?.toString() || "60",
+        deliveryChargeOutsideDhaka: settings.deliveryChargeOutsideDhaka?.toString() || "120",
+      }
       : undefined,
   });
 
@@ -158,7 +159,7 @@ export default function Settings() {
                       <FormLabel>{language === "bn" ? "লোগো URL" : "Logo URL"}</FormLabel>
                       <FormControl>
                         <div className="space-y-2">
-                          <Input {...field} placeholder="https://..." data-testid="input-logo-url" />
+                          <Input {...field} value={field.value || ""} placeholder="https://..." data-testid="input-logo-url" />
                           {field.value && (
                             <div className="border rounded-md p-4 flex items-center justify-center bg-muted">
                               <img
@@ -187,7 +188,7 @@ export default function Settings() {
                     <FormItem>
                       <FormLabel>{language === "bn" ? "চালান ফুটার টেক্সট" : "Invoice Footer Text"}</FormLabel>
                       <FormControl>
-                        <Input {...field} data-testid="input-invoice-footer" />
+                        <Input {...field} value={field.value || ""} data-testid="input-invoice-footer" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

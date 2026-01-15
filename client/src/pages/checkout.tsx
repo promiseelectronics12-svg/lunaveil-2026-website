@@ -12,8 +12,9 @@ import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import type { Product } from "@shared/schema";
-import { ShoppingBag } from "lucide-react";
+import type { Product, CompanySettings } from "@shared/schema";
+import { ShoppingBag, Tag } from "lucide-react";
+import { useCart } from "@/lib/cart-context";
 
 interface CartItem extends Product {
   quantity: number;
@@ -23,7 +24,7 @@ export default function Checkout() {
   const { language, t } = useLanguage();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const { cart, cartTotal, discountAmount, appliedPromotion } = useCart();
 
   const [formData, setFormData] = useState({
     customerName: "",
@@ -32,37 +33,23 @@ export default function Checkout() {
     deliveryLocation: "inside_dhaka" as "inside_dhaka" | "outside_dhaka",
   });
 
-  const { data: settings } = useQuery({
+  const { data: settings } = useQuery<CompanySettings>({
     queryKey: ["/api/settings"],
+    queryFn: () => apiRequest("GET", "/api/settings"),
   });
 
-  useEffect(() => {
-    const savedCart = localStorage.getItem("cart");
-    if (savedCart) {
-      try {
-        setCart(JSON.parse(savedCart));
-      } catch (e) {
-        console.error("Failed to parse cart", e);
-      }
-    }
-  }, []);
+  // Cart is now managed by context
+  // useEffect(() => { ... }, []);
 
   const deliveryCharge =
-    formData.deliveryLocation === "inside_dhaka"
-      ? parseFloat(settings?.deliveryChargeInsideDhaka || "60")
-      : parseFloat(settings?.deliveryChargeOutsideDhaka || "120");
+    appliedPromotion?.type === "free_delivery" && cartTotal >= parseFloat(appliedPromotion.minOrderValue?.toString() || "0")
+      ? 0
+      : formData.deliveryLocation === "inside_dhaka"
+        ? parseFloat(settings?.deliveryChargeInsideDhaka || "60")
+        : parseFloat(settings?.deliveryChargeOutsideDhaka || "120");
 
-  const subtotal = cart.reduce(
-    (sum, item) => {
-      const price = item.discountedPrice 
-        ? parseFloat(item.discountedPrice.toString()) 
-        : parseFloat(item.price.toString());
-      return sum + price * item.quantity;
-    },
-    0
-  );
-
-  const total = subtotal + deliveryCharge;
+  const subtotal = cartTotal;
+  const total = subtotal + deliveryCharge - discountAmount;
 
   const orderMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -71,8 +58,8 @@ export default function Checkout() {
     onSuccess: () => {
       toast({
         title: language === "bn" ? "অর্ডার সফল!" : "Order Successful!",
-        description: language === "bn" 
-          ? "আপনার অর্ডার গ্রহণ করা হয়েছে।" 
+        description: language === "bn"
+          ? "আপনার অর্ডার গ্রহণ করা হয়েছে।"
           : "Your order has been received.",
       });
       localStorage.removeItem("cart");
@@ -81,8 +68,8 @@ export default function Checkout() {
     onError: () => {
       toast({
         title: language === "bn" ? "ত্রুটি" : "Error",
-        description: language === "bn" 
-          ? "অর্ডার প্রক্রিয়া করতে ব্যর্থ।" 
+        description: language === "bn"
+          ? "অর্ডার প্রক্রিয়া করতে ব্যর্থ।"
           : "Failed to process order.",
         variant: "destructive",
       });
@@ -95,8 +82,8 @@ export default function Checkout() {
     if (!formData.customerName || !formData.customerPhone || !formData.customerAddress) {
       toast({
         title: language === "bn" ? "ত্রুটি" : "Error",
-        description: language === "bn" 
-          ? "সমস্ত ক্ষেত্র পূরণ করুন।" 
+        description: language === "bn"
+          ? "সমস্ত ক্ষেত্র পূরণ করুন।"
           : "Please fill all fields.",
         variant: "destructive",
       });
@@ -106,8 +93,8 @@ export default function Checkout() {
     if (cart.length === 0) {
       toast({
         title: language === "bn" ? "ত্রুটি" : "Error",
-        description: language === "bn" 
-          ? "আপনার কার্ট খালি।" 
+        description: language === "bn"
+          ? "আপনার কার্ট খালি।"
           : "Your cart is empty.",
         variant: "destructive",
       });
@@ -122,8 +109,8 @@ export default function Checkout() {
       status: "pending",
       items: cart.map((item) => {
         const regularPrice = parseFloat(item.price.toString());
-        const effectivePrice = item.discountedPrice 
-          ? parseFloat(item.discountedPrice.toString()) 
+        const effectivePrice = item.discountedPrice
+          ? parseFloat(item.discountedPrice.toString())
           : regularPrice;
         return {
           productId: item.id,
@@ -268,8 +255,8 @@ export default function Checkout() {
               <CardContent className="space-y-4">
                 {cart.map((item) => {
                   const name = language === "bn" ? item.nameBn : item.nameEn;
-                  const price = item.discountedPrice 
-                    ? parseFloat(item.discountedPrice.toString()) 
+                  const price = item.discountedPrice
+                    ? parseFloat(item.discountedPrice.toString())
                     : parseFloat(item.price.toString());
                   return (
                     <div key={item.id} className="flex justify-between text-sm" data-testid={`summary-item-${item.id}`}>
@@ -288,9 +275,25 @@ export default function Checkout() {
                     <span className="text-muted-foreground">{t("checkout.subtotal")}</span>
                     <span className="font-medium" data-testid="text-checkout-subtotal">৳{subtotal.toFixed(2)}</span>
                   </div>
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span className="flex items-center gap-1">
+                        <Tag className="h-3 w-3" />
+                        {language === "bn" ? "ছাড়" : "Discount"}
+                        {appliedPromotion && <span className="text-xs ml-1">({appliedPromotion.name})</span>}
+                      </span>
+                      <span className="font-medium">-৳{discountAmount.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">{t("checkout.delivery")}</span>
-                    <span className="font-medium" data-testid="text-checkout-delivery">৳{deliveryCharge.toFixed(2)}</span>
+                    <span className="font-medium" data-testid="text-checkout-delivery">
+                      {deliveryCharge === 0 ? (
+                        <span className="text-green-600">{language === "bn" ? "ফ্রি" : "Free"}</span>
+                      ) : (
+                        `৳${deliveryCharge.toFixed(2)}`
+                      )}
+                    </span>
                   </div>
                   <div className="flex justify-between text-lg font-semibold border-t pt-2">
                     <span>{t("checkout.total")}</span>

@@ -15,6 +15,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { z } from "zod";
+import { type AdminUser } from "@shared/schema";
 import { Trash2, UserPlus } from "lucide-react";
 import {
   Dialog,
@@ -50,8 +51,9 @@ export default function AdminUsers() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<{ id: string; username: string } | null>(null);
 
-  const { data: users, isLoading } = useQuery({
+  const { data: users, isLoading } = useQuery<AdminUser[]>({
     queryKey: ["/api/admin/users"],
+    queryFn: () => apiRequest("GET", "/api/admin/users"),
   });
 
   const form = useForm<UserFormData>({

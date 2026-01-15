@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLanguage } from "@/lib/language-context";
 import type { Product } from "@shared/schema";
+import { motion } from "framer-motion";
+import { useRef } from "react";
+import { useFlyToCart } from "@/lib/fly-to-cart-context";
 
 interface ProductCardProps {
   product: Product;
@@ -12,70 +15,85 @@ interface ProductCardProps {
 
 export function ProductCard({ product, onAddToCart, onViewDetails }: ProductCardProps) {
   const { language, t } = useLanguage();
+  const { triggerFly } = useFlyToCart();
+  const imageRef = useRef<HTMLImageElement>(null);
+
   const name = language === "bn" ? product.nameBn : product.nameEn;
   const description = language === "bn" ? product.descriptionBn : product.descriptionEn;
   const isOutOfStock = product.stock <= 0;
 
   return (
-    <Card className="overflow-hidden hover-elevate transition-all cursor-pointer" onClick={() => onViewDetails?.(product)} data-testid={`card-product-${product.id}`}>
-      <div className="aspect-square bg-muted relative overflow-hidden">
-        {product.images && product.images.length > 0 && (
-          <img
-            src={product.images[0]}
-            alt={name}
-            className="w-full h-full object-cover"
-            data-testid={`img-product-${product.id}`}
-          />
-        )}
-        {isOutOfStock && (
-          <Badge
-            variant="secondary"
-            className="absolute top-2 right-2"
-            data-testid={`badge-out-of-stock-${product.id}`}
-          >
-            {t("product.outOfStock")}
-          </Badge>
-        )}
-      </div>
-
-      <CardContent className="p-4">
-        <h3 className="font-semibold text-foreground mb-2 line-clamp-2" data-testid={`text-product-name-${product.id}`}>
-          {name}
-        </h3>
-        <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-          {description}
-        </p>
-        <div className="flex items-baseline gap-2">
-          {product.discountedPrice ? (
-            <>
-              <span className="text-lg text-muted-foreground line-through" data-testid={`text-product-regular-price-${product.id}`}>
-                ৳{product.price}
-              </span>
-              <span className="text-2xl font-semibold text-primary" data-testid={`text-product-discounted-price-${product.id}`}>
-                ৳{product.discountedPrice}
-              </span>
-            </>
-          ) : (
-            <span className="text-2xl font-semibold text-primary" data-testid={`text-product-price-${product.id}`}>
-              ৳{product.price}
-            </span>
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      whileInView={{ opacity: 1, scale: 1 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.3 }}
+      whileHover={{ y: -5 }}
+    >
+      <Card className="overflow-hidden hover-elevate transition-all cursor-pointer h-full flex flex-col" onClick={() => onViewDetails?.(product)} data-testid={`card-product-${product.id}`}>
+        <div className="aspect-square bg-muted relative overflow-hidden">
+          {product.images && product.images.length > 0 && (
+            <img
+              ref={imageRef}
+              src={product.images[0]}
+              alt={name}
+              className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+              data-testid={`img-product-${product.id}`}
+            />
+          )}
+          {isOutOfStock && (
+            <Badge
+              variant="secondary"
+              className="absolute top-2 right-2"
+              data-testid={`badge-out-of-stock-${product.id}`}
+            >
+              {t("product.outOfStock")}
+            </Badge>
           )}
         </div>
-      </CardContent>
 
-      <CardFooter className="p-4 pt-0 flex gap-2">
-        <Button
-          className="flex-1"
-          disabled={isOutOfStock}
-          onClick={(e) => {
-            e.stopPropagation();
-            onAddToCart?.(product);
-          }}
-          data-testid={`button-add-to-cart-${product.id}`}
-        >
-          {t("product.addToCart")}
-        </Button>
-      </CardFooter>
-    </Card>
+        <CardContent className="p-4 flex-1">
+          <h3 className="font-semibold text-foreground mb-2 line-clamp-2" data-testid={`text-product-name-${product.id}`}>
+            {name}
+          </h3>
+          <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+            {description}
+          </p>
+          <div className="flex items-baseline gap-2">
+            {product.discountedPrice ? (
+              <>
+                <span className="text-lg text-muted-foreground line-through" data-testid={`text-product-regular-price-${product.id}`}>
+                  ৳{product.price}
+                </span>
+                <span className="text-2xl font-semibold text-primary" data-testid={`text-product-discounted-price-${product.id}`}>
+                  ৳{product.discountedPrice}
+                </span>
+              </>
+            ) : (
+              <span className="text-2xl font-semibold text-primary" data-testid={`text-product-price-${product.id}`}>
+                ৳{product.price}
+              </span>
+            )}
+          </div>
+        </CardContent>
+
+        <CardFooter className="p-4 pt-0 flex gap-2">
+          <Button
+            className="flex-1"
+            disabled={isOutOfStock}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (imageRef.current) {
+                triggerFly(product.images?.[0] || "", imageRef.current);
+              }
+              onAddToCart?.(product);
+            }}
+            data-testid={`button-add-to-cart-${product.id}`}
+          >
+            {t("product.addToCart")}
+          </Button>
+        </CardFooter>
+      </Card>
+    </motion.div>
   );
 }
