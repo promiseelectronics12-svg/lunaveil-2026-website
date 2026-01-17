@@ -1,16 +1,5 @@
 {
-  "version": 2,
-  "buildCommand": "cd client && npx vite build --outDir ../dist/public && cd .. && npx esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+  "buildCommand": "npm run build",
   "outputDirectory": "dist/public",
-  "installCommand": "npm install",
-  "framework": null,
-  "functions": {
-    "api/**/*.ts": {
-      "runtime": "@vercel/node@3"
-    }
-  },
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.ts" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  "installCommand": "npm install"
 }
