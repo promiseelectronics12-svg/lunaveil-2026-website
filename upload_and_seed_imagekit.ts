@@ -31,18 +31,18 @@ const IMAGEKIT_FOLDER = '/products';
 const productToImageMapping: Record<string, string[]> = {
     'Radiant Glow Serum': ['SKIN1004-Centella-Hyalu-Cica-Water-Fit-Sun-Serum2.jpg'],
     'Hydra Moisture Cream': ['gongskin.jpg'],
-    'Velvet Matte Lipstick': ['product_2.jpg'],
+    'Velvet Matte Lipstick': ['product 2.jpg'],
     'Rose Petal Face Wash': ['The-Face-Shop-Rice-Water-Bright-Facial-Foaming-Cleanser-1.jpg'],
-    'Luminous Foundation': ['product_4.jpg'],
-    'Velvet Matte Lipstick - Rose': ['product_3.jpg'],
+    'Luminous Foundation': ['product 4.jpg'],
+    'Velvet Matte Lipstick - Rose': ['product 3.jpg'],
     'Midnight Recovery Oil': ['RICE CERAMIDE.jpg'],
-    'Golden Shimmer Highlighter': ['product_5.jpg'],
+    'Golden Shimmer Highlighter': ['product 5.jpg'],
     'Rose Water Facial Mist': ['SKIN1004-Centella-Hyalu-Cica-Water-Fit-Sun-Serum4.jpg'],
-    'Silk Foundation - Medium': ['product_4.jpg'],
+    'Silk Foundation - Medium': ['product 4.jpg'],
     'Charcoal Detox Mask': ['COLLAGEN CICA MASK FRONT SIDE.jpg', 'COLLAGEN CICA MASK BACK SIDE.jpg'],
-    'Luxury Eye Palette - Sunset': ['product_5.jpg'],
+    'Luxury Eye Palette - Sunset': ['product 5.jpg'],
     'Vitamin E Night Cream': ['eshumi vitamin repair.jpg', 'eshumi vitamin repair backside.jpg'],
-    'Brow Sculpt Pencil': ['product_2.jpg'],
+    'Brow Sculpt Pencil': ['product 2.jpg'],
     'Coconut Hair Serum': ['lunaveil product.jpg']
 };
 
